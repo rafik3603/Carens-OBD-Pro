@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    
+    <!-- Speedometer outer gauge arc (cyan) -->
+    <path
+        android:pathData="M32,68 A 22,22 0 1 1 76,68"
+        android:strokeColor="#00E5FF"
+        android:strokeWidth="3.5"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+
+    <!-- Tachometer calibration ticks (white) -->
+    <!-- Tick 1 (Left horizontal) -->
+    <path
+        android:pathData="M32,52 L36,52"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round" />
+    <!-- Tick 2 (Left top diagonal) -->
+    <path
+        android:pathData="M38,38 L41,41"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round" />
+    <!-- Tick 3 (Top vertical) -->
+    <path
+        android:pathData="M54,30 L54,34"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round" />
+    <!-- Tick 4 (Right top diagonal) -->
+    <path
+        android:pathData="M70,38 L67,41"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round" />
+    <!-- Tick 5 (Right horizontal) -->
+    <path
+        android:pathData="M76,52 L72,52"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round" />
+
+    <!-- High-tech orange needle pointing to speed -->
+    <path
+        android:pathData="M54,52 L68,38"
+        android:strokeColor="#FFA726"
+        android:strokeWidth="3.5"
+        android:strokeLineCap="round" />
+
+    <!-- Core hub center pivot cap -->
+    <path
+        android:pathData="M54,48 A 4,4 0 1 1 53.99,48 Z"
+        android:fillColor="#FFFFFF" />
+
+    <!-- Glowing Holographic Sports Car Outline in the lower area -->
+    <!-- Car Chassis & Body -->
+    <path
+        android:pathData="M38,72 L38,69 Q44,69 46,65 L49,59 Q51,56 54,56 Q57,56 59,59 L62,65 Q64,69 70,69 L70,72 Q70,74 68,74 L40,74 Q38,74 38,72 Z"
+        android:strokeColor="#FFA726"
+        android:strokeWidth="1.8"
+        android:fillColor="#40FFA726" />
+
+    <!-- Wheels (with high-tech dark fill and orange stroke) -->
+    <!-- Left Wheel -->
+    <path
+        android:pathData="M45,71.5 A 2.5,2.5 0 1 1 44.99,71.5 Z"
+        android:strokeColor="#FFA726"
+        android:strokeWidth="1"
+        android:fillColor="#0A0D14" />
+    <!-- Right Wheel -->
+    <path
+        android:pathData="M63,71.5 A 2.5,2.5 0 1 1 62.99,71.5 Z"
+        android:strokeColor="#FFA726"
+        android:strokeWidth="1"
+        android:fillColor="#0A0D14" />
+</vector>

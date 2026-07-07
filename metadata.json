@@ -1,0 +1,6 @@
+{
+  "name": "Carens OBD Pro",
+  "description": "Professional OBD2 Diagnostic Dashboard for Kia Carens 2008 CRDi, with fast Bluetooth connection and real-time PIDs.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

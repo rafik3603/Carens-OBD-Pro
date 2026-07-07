@@ -1,0 +1,26 @@
+<resources>
+    <string name="app_name">Carens OBD Pro</string>
+    <string name="app_title_ar">كارنز OBD برو</string>
+    <string name="bt_not_supported">البلوتوث غير مدعوم على هذا الجهاز</string>
+    <string name="bt_disabled">يرجى تفعيل البلوتوث للاتصال بالسيارة</string>
+    <string name="perm_denied">تم رفض صلاحيات البلوتوث</string>
+    <string name="select_device">اختر جهاز OBD2 Bluetooth</string>
+    <string name="connect">اتصال</string>
+    <string name="disconnect">قطع الاتصال</string>
+    <string name="connecting">جاري الاتصال...</string>
+    <string name="connected">متصل بالسيارة</string>
+    <string name="disconnected">غير متصل</string>
+    <string name="demo_mode">وضع المحاكاة (كيا كارنز 2008)</string>
+    <string name="engine_rpm">دوران المحرك (RPM)</string>
+    <string name="vehicle_speed">السرعة (كم/س)</string>
+    <string name="coolant_temp">حرارة المحرك (°م)</string>
+    <string name="engine_load">حمل المحرك (%)</string>
+    <string name="battery_voltage">جهد البطارية (فولت)</string>
+    <string name="fuel_level">مستوى الوقود (%)</string>
+    <string name="dtc_status">الأعطال المسجلة (DTC)</string>
+    <string name="dtc_count">%1$d عطل مكتشف</string>
+    <string name="no_dtcs">لا توجد أعطال مسجلة (سليمة)</string>
+    <string name="clear_codes">مسح الأعطال</string>
+    <string name="scanning">جاري فحص كمبيوتر السيارة...</string>
+    <string name="clearing">جاري مسح أكواد الأعطال...</string>
+</resources>
