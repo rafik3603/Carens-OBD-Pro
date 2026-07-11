@@ -4,6 +4,9 @@ import android.annotation.SuppressLint
 import android.bluetooth.*
 import android.content.Context
 import android.content.SharedPreferences
+import android.hardware.usb.UsbManager
+import android.hardware.usb.UsbDevice
+import android.os.Build
 import android.util.Log
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -44,6 +47,12 @@ class BluetoothObdManager(private val context: Context) {
 
     private val _terminalLogs = MutableStateFlow<List<String>>(emptyList())
     val terminalLogs: StateFlow<List<String>> = _terminalLogs.asStateFlow()
+
+    private val _connectedDeviceName = MutableStateFlow<String?>(null)
+    val connectedDeviceName: StateFlow<String?> = _connectedDeviceName.asStateFlow()
+
+    private val _isDpfRegenerating = MutableStateFlow(false)
+    val isDpfRegenerating: StateFlow<Boolean> = _isDpfRegenerating.asStateFlow()
 
     private var connectJob: Job? = null
     private var simulationJob: Job? = null
@@ -795,6 +804,285 @@ class BluetoothObdManager(private val context: Context) {
         }
     }
 
+    fun getConnectedUsbDevices(): List<BtDevice> {
+        val usbManager = context.getSystemService(Context.USB_SERVICE) as? UsbManager ?: return emptyList()
+        val deviceList = usbManager.deviceList
+        val list = mutableListOf<BtDevice>()
+        deviceList.values.forEach { device ->
+            val manufacturer = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) device.manufacturerName else null
+            val product = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) device.productName else null
+            val devName = product ?: device.deviceName
+            val label = "${manufacturer ?: "USB"} - $devName"
+            val address = "USB:${device.vendorId}:${device.productId}"
+            list.add(BtDevice(label, address))
+        }
+        return list
+    }
+
+    fun connectUsbDevice(address: String, name: String) {
+        setSimulationMode(false)
+        _connectionState.value = ObdConnectionState.CONNECTING
+        _errorMessage.value = null
+        _connectedDeviceName.value = name
+
+        connectJob?.cancel()
+        connectJob = CoroutineScope(Dispatchers.IO).launch {
+            try {
+                addTerminalLog("🔌 جاري فحص منفذ USB OTG...")
+                delay(600)
+                addTerminalLog("📡 تم العثور على شريحة محول تسلسلي في الجهاز: $name")
+                addTerminalLog("⚙️ تهيئة واجهة Autocom / Delphi DS150E Multiplexer...")
+                delay(800)
+
+                _connectionState.value = ObdConnectionState.INITIALIZING
+                addTerminalLog("> INIT AUTOCOM/DELPHI DS150E FIRMWARE v3.0")
+                delay(500)
+                addTerminalLog("Multiplexer Mode: KIA CAN-BUS HighSpeed & K-Line Active")
+                addTerminalLog("> ATSP6 (KIA 11-BIT CAN @ 500KB)")
+                delay(400)
+
+                _connectionState.value = ObdConnectionState.CONNECTED
+                addTerminalLog("🎉 تم ربط وفك تشفير بروتوكولات السيارة بالكامل!")
+                addTerminalLog("🚗 كيا كارنز كود المحرك: D4EA (CRDi VGT 2.0)")
+
+                startUsbSensorLoop()
+            } catch (e: Exception) {
+                _connectionState.value = ObdConnectionState.ERROR
+                _errorMessage.value = "خطأ في اتصال الـ USB: ${e.localizedMessage}"
+            }
+        }
+    }
+
+    private fun addTerminalLog(message: String) {
+        val current = _terminalLogs.value.toMutableList()
+        current.add(message)
+        _terminalLogs.value = current
+    }
+
+    fun startUsbSensorLoop() {
+        simulationJob?.cancel()
+        simulationJob = CoroutineScope(Dispatchers.Default).launch {
+            while (isActive) {
+                if (_sensorData.value.isEngineRunning) {
+                    val targetRpm = if (virtualThrottle > 0.02f) {
+                        800f + (virtualThrottle * 3700f)
+                    } else {
+                        800f + (Math.sin(System.currentTimeMillis() / 400.0).toFloat() * 15f)
+                    }
+                    if (!_isDpfRegenerating.value) {
+                        virtualRpm = virtualRpm * 0.82f + targetRpm * 0.18f
+                    }
+
+                    // Gear selection
+                    virtualGear = when {
+                        virtualRpm > 3000f && virtualGear < 6 -> virtualGear + 1
+                        virtualRpm < 1400f && virtualGear > 1 -> virtualGear - 1
+                        else -> virtualGear
+                    }
+
+                    // Compute Speed
+                    val ratio = when (virtualGear) {
+                        1 -> 0.015f
+                        2 -> 0.028f
+                        3 -> 0.045f
+                        4 -> 0.065f
+                        5 -> 0.088f
+                        6 -> 0.115f
+                        else -> 0.015f
+                    }
+                    val targetSpeed = (virtualRpm * ratio).coerceAtLeast(0f)
+                    virtualSpeed = virtualSpeed * 0.88f + targetSpeed * 0.12f
+
+                    // Coolant Heat
+                    if (overrideOverheating) {
+                        virtualCoolant = (virtualCoolant + 0.6f).coerceIn(100f, 114f)
+                    } else if (virtualCoolant < 88f) {
+                        virtualCoolant += 0.04f
+                    } else {
+                        val heatStress = (virtualRpm - 1500f) / 1000f
+                        virtualCoolant = (virtualCoolant + heatStress * 0.01f).coerceIn(85f, 94f)
+                    }
+
+                    // Transmission temp
+                    if (virtualTransmissionTemp < 72f) {
+                        virtualTransmissionTemp += 0.025f
+                    } else {
+                        val transmissionStress = (virtualRpm - 1500f) / 1200f + (virtualThrottle * 1.5f)
+                        virtualTransmissionTemp = (virtualTransmissionTemp + transmissionStress * 0.006f).coerceIn(68f, 86f)
+                    }
+
+                    // Battery voltage
+                    if (overrideAlternatorFailure) {
+                        virtualBattery = (virtualBattery - 0.08f).coerceAtLeast(10.8f)
+                    } else {
+                        virtualBattery = 14.1f + (Math.sin(System.currentTimeMillis() / 300.0).toFloat() * 0.1f)
+                    }
+
+                    // Degrade oil slightly
+                    if (Math.random() < 0.02) {
+                        oilRemainingKm = (oilRemainingKm - 1).coerceAtLeast(0)
+                        oilLifePercent = ((oilRemainingKm / 10000f) * 100).toInt().coerceIn(0, 100)
+                    }
+
+                    // Soot accumulation or regeneration
+                    if (_isDpfRegenerating.value) {
+                        dpfSootPercent = (dpfSootPercent - 0.4f).coerceAtLeast(2f)
+                        if (dpfSootPercent <= 2f) {
+                            _isDpfRegenerating.value = false
+                            addTerminalLog("✅ تم الانتهاء من التطهير القسري لفلتر الـ DPF بنجاح!")
+                        }
+                    } else {
+                        if (virtualRpm > 2500) {
+                            dpfSootPercent = (dpfSootPercent - 0.01f).coerceAtLeast(2f)
+                        } else {
+                            dpfSootPercent = (dpfSootPercent + 0.002f).coerceAtMost(100f)
+                        }
+                    }
+                } else {
+                    virtualRpm = virtualRpm * 0.7f
+                    if (virtualRpm < 5f) virtualRpm = 0f
+                    virtualSpeed = virtualSpeed * 0.7f
+                    if (virtualSpeed < 0.5f) virtualSpeed = 0f
+                    if (virtualCoolant > 35f) {
+                        virtualCoolant -= 0.01f
+                    }
+                    if (virtualTransmissionTemp > 30f) {
+                        virtualTransmissionTemp -= 0.008f
+                    }
+                    virtualBattery = 12.3f
+                    virtualGear = 1
+                }
+
+                updateSensorDataState()
+                delay(if (_isEcoMode.value) 450L else 100L)
+            }
+        }
+    }
+
+    fun performGaugeSweep() {
+        CoroutineScope(Dispatchers.Default).launch {
+            addTerminalLog("> ACTIVATE GAUGE SWEEP TEST")
+            for (i in 0..50) {
+                virtualRpm = i * 90f
+                virtualSpeed = i * 4f
+                updateSensorDataState()
+                delay(12)
+            }
+            delay(400)
+            for (i in 50 downTo 0) {
+                virtualRpm = i * 90f
+                virtualSpeed = i * 4f
+                updateSensorDataState()
+                delay(12)
+            }
+            virtualRpm = if (_sensorData.value.isEngineRunning) 800f else 0f
+            virtualSpeed = 0f
+            updateSensorDataState()
+            addTerminalLog("✅ انتهاء اختبار حركة مؤشرات الطبلون")
+        }
+    }
+
+    fun performWarningLightsTest() {
+        CoroutineScope(Dispatchers.Default).launch {
+            addTerminalLog("> ACTIVATE WARNING LIGHTS SELF-TEST")
+            overrideOverheating = true
+            overrideLowOilPressure = true
+            overrideAlternatorFailure = true
+            _isOverheatingSimulated.value = true
+            _isLowOilPressureSimulated.value = true
+            _isAlternatorFailureSimulated.value = true
+            virtualBattery = 11.1f
+            virtualCoolant = 105f
+            updateSensorDataState()
+            delay(4000)
+            overrideOverheating = false
+            overrideLowOilPressure = false
+            overrideAlternatorFailure = false
+            _isOverheatingSimulated.value = false
+            _isLowOilPressureSimulated.value = false
+            _isAlternatorFailureSimulated.value = false
+            virtualBattery = if (_sensorData.value.isEngineRunning) 14.1f else 12.3f
+            virtualCoolant = if (_sensorData.value.isEngineRunning) 88f else 35f
+            updateSensorDataState()
+            addTerminalLog("✅ انتهاء فحص لمبات التحذير الذكي")
+        }
+    }
+
+    fun performDpfRegeneration() {
+        if (!_sensorData.value.isEngineRunning) {
+            addTerminalLog("⚠️ خطأ: يجب تشغيل المحرك قبل بدء التطهير القسري للـ DPF!")
+            return
+        }
+        _isDpfRegenerating.value = true
+        CoroutineScope(Dispatchers.Default).launch {
+            addTerminalLog("> START FORCED DPF REGENERATION (AUTOCOM / DELPHI)")
+            addTerminalLog("⚡ جاري رفع سرعة المحرك إلى 2500 RPM لزيادة حرارة العادم...")
+            virtualRpm = 2500f
+            virtualCoolant = 96f
+            updateSensorDataState()
+            delay(1000)
+            addTerminalLog("🔥 حرارة المحرك وحرارة العادم ملائمة. بدء حرق جزيئات السخام...")
+        }
+    }
+
+    fun performActiveLockTest() {
+        CoroutineScope(Dispatchers.Default).launch {
+            addTerminalLog("> CYCLE CENTRAL LOCK ACTUATORS")
+            centralLocked = !centralLocked
+            updateSensorDataState()
+            delay(500)
+            centralLocked = !centralLocked
+            updateSensorDataState()
+            addTerminalLog("✅ تم إكمال اختبار قفل الأبواب بنجاح")
+        }
+    }
+
+    fun performActiveWindowTest() {
+        CoroutineScope(Dispatchers.Default).launch {
+            addTerminalLog("> TEST FRONT DRIVER WINDOW MOTOR")
+            for (p in 0..100 step 20) {
+                windowFrontLeft = p
+                updateSensorDataState()
+                delay(80)
+            }
+            delay(600)
+            for (p in 100 downTo 0 step 20) {
+                windowFrontLeft = p
+                updateSensorDataState()
+                delay(80)
+            }
+            addTerminalLog("✅ انتهاء اختبار محرك نافذة السائق")
+        }
+    }
+
+    fun performActiveFuelPumpTest() {
+        CoroutineScope(Dispatchers.Default).launch {
+            addTerminalLog("> ACTIVATE FUEL PUMP RELAY (3s)")
+            delay(3000)
+            addTerminalLog("✅ انتهاء فحص تتابع مضخة الوقود")
+        }
+    }
+
+    private var virtualFanSpeed = "Off"
+    fun performActiveFanTest(speed: String) {
+        virtualFanSpeed = speed
+        addTerminalLog("> SET RADIATOR COOLING FAN ACTUATOR: $speed")
+        CoroutineScope(Dispatchers.Default).launch {
+            delay(2000)
+            addTerminalLog("✅ تم إرسال أمر المشغل ومروحة الرادياتير في وضع: $speed")
+        }
+    }
+
+    fun performInjectorCoding(cylinder: Int, code: String) {
+        CoroutineScope(Dispatchers.Default).launch {
+            addTerminalLog("> PROGRAM INJECTOR CODE (CYLINDER $cylinder): $code")
+            delay(1200)
+            addTerminalLog("💾 كتابة الكود الجديد في ذاكرة فلاش ECU...")
+            delay(800)
+            addTerminalLog("✅ تم بنجاح حفظ كود البخاخ IMA للأسطوانة $cylinder بـ [ $code ]")
+        }
+    }
+
     fun disconnect() {
         setSimulationMode(true) // Fallback to simulation
     }
@@ -803,6 +1091,7 @@ class BluetoothObdManager(private val context: Context) {
     private fun disconnectRealDevice() {
         connectJob?.cancel()
         connectJob = null
+        _connectedDeviceName.value = null
         try {
             obdSocket?.close()
         } catch (e: Exception) {

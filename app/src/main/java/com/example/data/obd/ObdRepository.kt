@@ -150,6 +150,8 @@ class ObdRepository(
 
     val isBleScanning: StateFlow<Boolean> = obdManager.isBleScanning
     val discoveredBleDevices: StateFlow<List<BtDevice>> = obdManager.discoveredBleDevices
+    val connectedDeviceName: StateFlow<String?> = obdManager.connectedDeviceName
+    val isDpfRegenerating: StateFlow<Boolean> = obdManager.isDpfRegenerating
 
     fun startBleScan() {
         obdManager.startBleScan()
@@ -161,5 +163,43 @@ class ObdRepository(
 
     fun connectToBleDevice(address: String) {
         obdManager.connectToBleDevice(address)
+    }
+
+    fun getConnectedUsbDevices(): List<BtDevice> = obdManager.getConnectedUsbDevices()
+
+    fun connectUsbDevice(address: String, name: String) {
+        obdManager.connectUsbDevice(address, name)
+    }
+
+    fun performGaugeSweep() {
+        obdManager.performGaugeSweep()
+    }
+
+    fun performWarningLightsTest() {
+        obdManager.performWarningLightsTest()
+    }
+
+    fun performDpfRegeneration() {
+        obdManager.performDpfRegeneration()
+    }
+
+    fun performActiveLockTest() {
+        obdManager.performActiveLockTest()
+    }
+
+    fun performActiveWindowTest() {
+        obdManager.performActiveWindowTest()
+    }
+
+    fun performActiveFuelPumpTest() {
+        obdManager.performActiveFuelPumpTest()
+    }
+
+    fun performActiveFanTest(speed: String) {
+        obdManager.performActiveFanTest(speed)
+    }
+
+    fun performInjectorCoding(cylinder: Int, code: String) {
+        obdManager.performInjectorCoding(cylinder, code)
     }
 }

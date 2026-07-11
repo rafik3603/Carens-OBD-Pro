@@ -42,6 +42,13 @@ import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.core.content.ContextCompat
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import com.example.data.db.*
 import com.example.data.obd.*
 import java.text.SimpleDateFormat
@@ -2973,6 +2980,311 @@ data class ScanModule(
 )
 
 @Composable
+fun ActiveTestsComponent(
+    viewModel: ObdViewModel,
+    modifier: Modifier = Modifier
+) {
+    val connectedDeviceName by viewModel.connectedDeviceName.collectAsState()
+    val isDpfRegenerating by viewModel.isDpfRegenerating.collectAsState()
+    val isSimulation by viewModel.isSimulation.collectAsState()
+    val sensorData by viewModel.sensorData.collectAsState()
+
+    // Injector coding state
+    var selectedCylinder by remember { mutableStateOf(1) }
+    var injectorCode by remember { mutableStateOf("7A3F9E2") }
+
+    Card(
+        modifier = modifier,
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF11141B)),
+        border = BorderStroke(1.dp, Color(0xFF00E5FF).copy(alpha = 0.4f))
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            // Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                val isAutocomActive = connectedDeviceName != null || isSimulation
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isAutocomActive) Color(0xFF00E5FF).copy(alpha = 0.15f) else Color(0xFF2C1E21)
+                    ),
+                    border = BorderStroke(1.dp, if (isAutocomActive) Color(0xFF00E5FF) else Color(0xFFE53935))
+                ) {
+                    Text(
+                        text = if (isAutocomActive) "واجهة مفعّلة نشطة ✅" else "يتطلب اتصال USB / Autocom DS150E 🔒",
+                        color = if (isAutocomActive) Color(0xFF00E5FF) else Color(0xFFE53935),
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "اختبارات المشغلات وبرمجة الأنظمة (Actuator Tests & Coding)",
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Right
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Icon(Icons.Default.Build, contentDescription = "Active Tests", tint = Color(0xFF00E5FF))
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Grid or Column of Active Tests
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                // Section 1: Dashboard and Warnings
+                Text(
+                    text = "1. اختبار عدادات ولوحة الطبلون (Cluster & Warning Lights Tests)",
+                    color = Color.Gray,
+                    fontSize = 11.sp,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Right
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = { viewModel.performGaugeSweep() },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E5FF).copy(alpha = 0.12f), contentColor = Color(0xFF00E5FF)),
+                        border = BorderStroke(1.dp, Color(0xFF00E5FF).copy(alpha = 0.5f)),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(Icons.Default.Speed, contentDescription = "Sweep", modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("فحص مؤشرات العدادات (Sweep)", fontSize = 11.sp)
+                    }
+
+                    Button(
+                        onClick = { viewModel.performWarningLightsTest() },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E5FF).copy(alpha = 0.12f), contentColor = Color(0xFF00E5FF)),
+                        border = BorderStroke(1.dp, Color(0xFF00E5FF).copy(alpha = 0.5f)),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(Icons.Default.Warning, contentDescription = "Warnings", modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("فحص لمبات التحذير (Lights)", fontSize = 11.sp)
+                    }
+                }
+
+                HorizontalDivider(color = Color(0xFF1E2530), thickness = 1.dp)
+
+                // Section 2: Actuators Activation
+                Text(
+                    text = "2. تشغيل واختبار المشغلات الكهربائية (Electrical Actuators Activation)",
+                    color = Color.Gray,
+                    fontSize = 11.sp,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Right
+                )
+
+                // Central lock & Window
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = { viewModel.performActiveLockTest() },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1C2230), contentColor = Color.LightGray),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(Icons.Default.Lock, contentDescription = "Lock", modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("دورة السنترال لوك", fontSize = 10.sp)
+                    }
+
+                    Button(
+                        onClick = { viewModel.performActiveWindowTest() },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1C2230), contentColor = Color.LightGray),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(Icons.Default.PlayArrow, contentDescription = "Window", modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("فحص موتور زجاج السائق", fontSize = 10.sp)
+                    }
+                }
+
+                // Fuel Pump & Coolant Fan
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Button(
+                        onClick = { viewModel.performActiveFuelPumpTest() },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1C2230), contentColor = Color.LightGray),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(Icons.Default.LocalGasStation, contentDescription = "Fuel Pump", modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("تنشيط تتابع مضخة الوقود", fontSize = 10.sp)
+                    }
+
+                    // Fan Selector Row
+                    Column(
+                        modifier = Modifier.weight(1.3f),
+                        horizontalAlignment = Alignment.End
+                    ) {
+                        Text("مروحة التبريد الرادياتير:", color = Color.Gray, fontSize = 9.sp)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            listOf("Off" to "إطفاء", "Low" to "بطيء", "High" to "سريع").forEach { (speed, label) ->
+                                TextButton(
+                                    onClick = { viewModel.performActiveFanTest(speed) },
+                                    modifier = Modifier.weight(1f).height(28.dp),
+                                    contentPadding = PaddingValues(0.dp),
+                                    colors = ButtonDefaults.textButtonColors(
+                                        containerColor = Color(0xFF232832),
+                                        contentColor = Color.LightGray
+                                    ),
+                                    shape = RoundedCornerShape(4.dp)
+                                ) {
+                                    Text(label, fontSize = 9.sp)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                HorizontalDivider(color = Color(0xFF1E2530), thickness = 1.dp)
+
+                // Section 3: Advanced Coding & Services
+                Text(
+                    text = "3. Services & Injector Coding",
+                    color = Color.Gray,
+                    fontSize = 11.sp,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Right
+                )
+
+                // DPF Regeneration Block
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1F26)),
+                    border = BorderStroke(1.dp, if (isDpfRegenerating) Color(0xFFFFB300) else Color.Transparent)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(10.dp).fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Button(
+                            onClick = { viewModel.performDpfRegeneration() },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isDpfRegenerating) Color(0xFFFFB300) else Color(0xFFFF5722),
+                                contentColor = Color.Black
+                            ),
+                            shape = RoundedCornerShape(6.dp),
+                            enabled = !isDpfRegenerating
+                        ) {
+                            if (isDpfRegenerating) {
+                                CircularProgressIndicator(modifier = Modifier.size(12.dp), strokeWidth = 1.5.dp, color = Color.Black)
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("جاري التطهير...", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            } else {
+                                Text("بدء تطهير قسري (DPF)", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text("التطهير القسري لفلتر بيئة الديزل DPF", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                            Text("مستوى سخام الشكمان الحالي: ${sensorData.dpfSootLevel}%", color = if (sensorData.dpfSootLevel > 30) Color.Red else Color.Green, fontSize = 10.sp)
+                        }
+                    }
+                }
+
+                // Injector Coding Block
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1F26))
+                ) {
+                    Column(modifier = Modifier.padding(10.dp)) {
+                        Text(
+                            text = "برمجة كود البخاخ الذكي (IMA Injector Coding - Delphi)",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.sp,
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.Right
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Button(
+                                onClick = {
+                                    if (injectorCode.isNotEmpty()) {
+                                        viewModel.performInjectorCoding(selectedCylinder, injectorCode)
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E5FF), contentColor = Color.Black),
+                                shape = RoundedCornerShape(6.dp),
+                                modifier = Modifier.height(38.dp)
+                            ) {
+                                Text("برمجة ترميز البخاخ", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            }
+
+                            TextField(
+                                value = injectorCode,
+                                onValueChange = { injectorCode = it.take(8).uppercase() },
+                                modifier = Modifier.weight(1f).height(38.dp),
+                                colors = TextFieldDefaults.colors(
+                                    focusedContainerColor = Color(0xFF11141B),
+                                    unfocusedContainerColor = Color(0xFF11141B),
+                                    focusedTextColor = Color.White,
+                                    unfocusedTextColor = Color.White,
+                                    focusedIndicatorColor = Color.Transparent,
+                                    unfocusedIndicatorColor = Color.Transparent
+                                ),
+                                textStyle = androidx.compose.ui.text.TextStyle(fontFamily = FontFamily.Monospace, fontSize = 11.sp),
+                                singleLine = true,
+                                shape = RoundedCornerShape(4.dp)
+                            )
+
+                            // Cylinder Selector Spinner Row
+                            Row(
+                                modifier = Modifier.background(Color(0xFF11141B), RoundedCornerShape(4.dp)).height(38.dp).padding(horizontal = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                listOf(1, 2, 3, 4).forEach { cyl ->
+                                    Box(
+                                        modifier = Modifier
+                                            .size(24.dp)
+                                            .background(if (selectedCylinder == cyl) Color(0xFF00E5FF) else Color.Transparent, RoundedCornerShape(2.dp))
+                                            .clickable { selectedCylinder = cyl },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(cyl.toString(), color = if (selectedCylinder == cyl) Color.Black else Color.Gray, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("أسطوانة", color = Color.Gray, fontSize = 9.sp)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun DtcScannerComponent(
     viewModel: ObdViewModel,
     data: com.example.data.obd.ObdSensorData,
@@ -3707,6 +4019,12 @@ fun DiagnosticView(
             modifier = Modifier.fillMaxWidth()
         )
 
+        // Active Tests & Coding Component (Autocom / Delphi DS150E Support)
+        ActiveTestsComponent(
+            viewModel = viewModel,
+            modifier = Modifier.fillMaxWidth()
+        )
+
         // Predefined & Custom OBD Terminal Console
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -4255,10 +4573,48 @@ fun ConnectionView(
     pairedDevices: List<com.example.data.obd.BtDevice>
 ) {
     var selectedDeviceAddress by remember { mutableStateOf("") }
-    var isBleMode by remember { mutableStateOf(false) }
+    var connectionMode by remember { mutableStateOf(0) } // 0 = Classic, 1 = BLE, 2 = USB OTG
     val isBleScanning by viewModel.isBleScanning.collectAsState()
     val discoveredBleDevices by viewModel.discoveredBleDevices.collectAsState()
     val context = LocalContext.current
+
+    val requiredPermissions = remember {
+        if (Build.VERSION.SDK_INT >= 31) {
+            listOf(
+                Manifest.permission.BLUETOOTH_CONNECT,
+                Manifest.permission.BLUETOOTH_SCAN
+            )
+        } else {
+            listOf(
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            )
+        }
+    }
+
+    var permissionsGranted by remember {
+        mutableStateOf(
+            requiredPermissions.all {
+                ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
+            }
+        )
+    }
+
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { result ->
+        val granted = result.values.all { it }
+        permissionsGranted = granted
+        if (granted) {
+            viewModel.refreshPairedDevices()
+        }
+    }
+
+    LaunchedEffect(permissionsGranted) {
+        if (permissionsGranted) {
+            viewModel.refreshPairedDevices()
+        }
+    }
 
     Column(
         modifier = Modifier.fillMaxSize(),
@@ -4336,7 +4692,7 @@ fun ConnectionView(
         }
 
         if (!isSimulation) {
-            // Dual connection type selection: Classic SPP vs BLE
+            // Triple connection type selection: Classic SPP vs BLE vs USB OTG
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF161922)),
@@ -4344,7 +4700,7 @@ fun ConnectionView(
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     Text(
-                        text = "تقنية الاتصال اللاسلكي بالمحول",
+                        text = "تقنية الاتصال وربط الواجهة (Bluetooth / USB OTG)",
                         color = Color.Gray,
                         fontSize = 11.sp,
                         modifier = Modifier.fillMaxWidth(),
@@ -4353,51 +4709,118 @@ fun ConnectionView(
                     Spacer(modifier = Modifier.height(8.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Button(
-                            onClick = { isBleMode = false },
+                            onClick = { connectionMode = 0 },
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(8.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = if (!isBleMode) Color(0xFF00E5FF).copy(alpha = 0.15f) else Color(0xFF1C1F27),
-                                contentColor = if (!isBleMode) Color(0xFF00E5FF) else Color.LightGray
+                                containerColor = if (connectionMode == 0) Color(0xFF00E5FF).copy(alpha = 0.15f) else Color(0xFF1C1F27),
+                                contentColor = if (connectionMode == 0) Color(0xFF00E5FF) else Color.LightGray
                             ),
-                            border = BorderStroke(1.dp, if (!isBleMode) Color(0xFF00E5FF) else Color(0xFF2C3549))
+                            border = BorderStroke(1.dp, if (connectionMode == 0) Color(0xFF00E5FF) else Color(0xFF2C3549)),
+                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
                         ) {
-                            Icon(Icons.Default.Bluetooth, contentDescription = "Classic")
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("بلوتوث تقليدي", fontSize = 11.sp)
+                            Icon(Icons.Default.Bluetooth, contentDescription = "Classic", modifier = Modifier.size(14.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("بلوتوث تقليدي", fontSize = 10.sp)
                         }
 
                         Button(
-                            onClick = { isBleMode = true },
+                            onClick = { connectionMode = 1 },
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(8.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = if (isBleMode) Color(0xFFFFB300).copy(alpha = 0.15f) else Color(0xFF1C1F27),
-                                contentColor = if (isBleMode) Color(0xFFFFB300) else Color.LightGray
+                                containerColor = if (connectionMode == 1) Color(0xFFFFB300).copy(alpha = 0.15f) else Color(0xFF1C1F27),
+                                contentColor = if (connectionMode == 1) Color(0xFFFFB300) else Color.LightGray
                             ),
-                            border = BorderStroke(1.dp, if (isBleMode) Color(0xFFFFB300) else Color(0xFF2C3549))
+                            border = BorderStroke(1.dp, if (connectionMode == 1) Color(0xFFFFB300) else Color(0xFF2C3549)),
+                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
                         ) {
-                            Icon(Icons.Default.Radar, contentDescription = "BLE")
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("بلوتوث ذكي BLE", fontSize = 11.sp)
+                            Icon(Icons.Default.Radar, contentDescription = "BLE", modifier = Modifier.size(14.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("بلوتوث BLE", fontSize = 10.sp)
+                        }
+
+                        Button(
+                            onClick = { connectionMode = 2 },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (connectionMode == 2) Color(0xFF00E5FF).copy(alpha = 0.15f) else Color(0xFF1C1F27),
+                                contentColor = if (connectionMode == 2) Color(0xFF00E5FF) else Color.LightGray
+                            ),
+                            border = BorderStroke(1.dp, if (connectionMode == 2) Color(0xFF00E5FF) else Color(0xFF2C3549)),
+                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
+                        ) {
+                            Icon(Icons.Default.Usb, contentDescription = "USB", modifier = Modifier.size(14.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("منفذ USB / OTG", fontSize = 10.sp)
                         }
                     }
                 }
             }
 
-            // Connection List Panel (Classic or BLE)
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF12151C)),
-                border = CardDefaults.outlinedCardBorder().copy(brush = SolidColor(Color(0xFF232B3A)))
-            ) {
+            if (!permissionsGranted) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1C1318)),
+                    border = BorderStroke(1.dp, Color(0xFFD32F2F).copy(alpha = 0.5f))
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(24.dp),
+                        verticalArrangement = Arrangement.Center,
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Bluetooth,
+                            contentDescription = "Bluetooth Permission Required",
+                            tint = Color(0xFFF44336),
+                            modifier = Modifier.size(72.dp)
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "مطلوب صلاحية البلوتوث",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.titleMedium,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "يتطلب نظام أندرويد إذن البلوتوث للبحث والاتصال بقطعة الـ OBD2 المقترنة بالهاتف. يرجى تفعيل الصلاحية للمتابعة.",
+                            color = Color.LightGray,
+                            style = MaterialTheme.typography.bodySmall,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth(0.9f)
+                        )
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Button(
+                            onClick = { launcher.launch(requiredPermissions.toTypedArray()) },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFB300), contentColor = Color.Black),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth(0.7f).height(48.dp)
+                        ) {
+                            Text("منح صلاحية البلوتوث 🔓", fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            } else {
+                // Connection List Panel (Classic or BLE or USB OTG)
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF12151C)),
+                    border = CardDefaults.outlinedCardBorder().copy(brush = SolidColor(Color(0xFF232B3A)))
+                ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    if (!isBleMode) {
+                    if (connectionMode == 0) {
                         // Bluetooth Classic list
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -4487,7 +4910,7 @@ fun ConnectionView(
                                 }
                             }
                         }
-                    } else {
+                    } else if (connectionMode == 1) {
                         // Bluetooth Low Energy (BLE) list
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -4600,8 +5023,120 @@ fun ConnectionView(
                                 }
                             }
                         }
+                    } else {
+                        // USB OTG / Autocom / Delphi list
+                        val usbDevices = remember { mutableStateListOf<com.example.data.obd.BtDevice>().apply { addAll(viewModel.getConnectedUsbDevices()) } }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            IconButton(onClick = {
+                                usbDevices.clear()
+                                usbDevices.addAll(viewModel.getConnectedUsbDevices())
+                            }) {
+                                Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = Color.White)
+                            }
+                            Text(
+                                text = "أجهزة ومحولات USB OTG المتوفرة (Autocom / Delphi / CH340)",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleSmall
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        if (usbDevices.isEmpty()) {
+                            Column(
+                                modifier = Modifier.fillMaxSize().padding(16.dp),
+                                verticalArrangement = Arrangement.Center,
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Icon(Icons.Default.Usb, contentDescription = "USB", tint = Color.Gray, modifier = Modifier.size(48.dp))
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text(
+                                    text = "لم يتم الكشف عن أجهزة USB متصلة حالياً عبر منفذ OTG.",
+                                    color = Color.Gray,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    textAlign = TextAlign.Center
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Button(
+                                    onClick = {
+                                        usbDevices.clear()
+                                        usbDevices.add(com.example.data.obd.BtDevice("Autocom DS150E Multi-Brand Scanner (Simulated)", "USB:0403:6001"))
+                                        usbDevices.add(com.example.data.obd.BtDevice("Delphi CDP+ Dual Board (Simulated)", "USB:0403:6001"))
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E5FF).copy(alpha = 0.2f), contentColor = Color(0xFF00E5FF)),
+                                    border = BorderStroke(1.dp, Color(0xFF00E5FF)),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Text("محاكاة ربط جهاز Autocom / Delphi 🔌", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                items(usbDevices) { device ->
+                                    val isSelected = selectedDeviceAddress == device.address
+                                    Card(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable { selectedDeviceAddress = device.address },
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = if (isSelected) Color(0xFF142C2F) else Color(0xFF1C1F27)
+                                        ),
+                                        border = CardDefaults.outlinedCardBorder().copy(
+                                            brush = SolidColor(if (isSelected) Color(0xFF00E5FF) else Color.Transparent)
+                                        )
+                                    ) {
+                                        Row(
+                                            modifier = Modifier
+                                                .padding(12.dp)
+                                                .fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            if (isSelected) {
+                                                Button(
+                                                    onClick = { viewModel.connectUsbDevice(device.address, device.name) },
+                                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E5FF), contentColor = Color.Black),
+                                                    shape = RoundedCornerShape(6.dp)
+                                                ) {
+                                                    Text("ربط سريع (USB OTG)", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                                }
+                                            } else {
+                                                Icon(
+                                                    Icons.Default.Usb,
+                                                    contentDescription = "USB Device",
+                                                    tint = Color.Gray
+                                                )
+                                            }
+
+                                            Column(horizontalAlignment = Alignment.End) {
+                                                Text(
+                                                    text = device.name,
+                                                    color = Color.White,
+                                                    fontWeight = FontWeight.Bold,
+                                                    style = MaterialTheme.typography.bodyMedium
+                                                )
+                                                Text(
+                                                    text = device.address,
+                                                    color = Color.Gray,
+                                                    style = MaterialTheme.typography.labelSmall
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
+            }
             }
         } else {
             // Visual Simulator Card explaining the setup

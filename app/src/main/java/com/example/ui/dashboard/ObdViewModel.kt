@@ -30,6 +30,8 @@ class ObdViewModel(application: Application) : AndroidViewModel(application) {
     val isSimulation: StateFlow<Boolean> = repository.isSimulation
     val isEcoMode: StateFlow<Boolean> = repository.isEcoMode
     val terminalLogs: StateFlow<List<String>> = repository.terminalLogs
+    val connectedDeviceName: StateFlow<String?> = repository.connectedDeviceName
+    val isDpfRegenerating: StateFlow<Boolean> = repository.isDpfRegenerating
 
     enum class DriveMode {
         NORMAL, ECO, SPORT, COMFORT
@@ -272,6 +274,46 @@ class ObdViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             repository.connectToBleDevice(address)
         }
+    }
+
+    fun getConnectedUsbDevices(): List<BtDevice> = repository.getConnectedUsbDevices()
+
+    fun connectUsbDevice(address: String, name: String) {
+        viewModelScope.launch {
+            repository.connectUsbDevice(address, name)
+        }
+    }
+
+    fun performGaugeSweep() {
+        repository.performGaugeSweep()
+    }
+
+    fun performWarningLightsTest() {
+        repository.performWarningLightsTest()
+    }
+
+    fun performDpfRegeneration() {
+        repository.performDpfRegeneration()
+    }
+
+    fun performActiveLockTest() {
+        repository.performActiveLockTest()
+    }
+
+    fun performActiveWindowTest() {
+        repository.performActiveWindowTest()
+    }
+
+    fun performActiveFuelPumpTest() {
+        repository.performActiveFuelPumpTest()
+    }
+
+    fun performActiveFanTest(speed: String) {
+        repository.performActiveFanTest(speed)
+    }
+
+    fun performInjectorCoding(cylinder: Int, code: String) {
+        repository.performInjectorCoding(cylinder, code)
     }
 
     fun toggleSimulation(enabled: Boolean) {
