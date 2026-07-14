@@ -34,6 +34,8 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -78,141 +80,375 @@ fun DashboardScreen(
     var selectedTab by remember { mutableStateOf(0) }
     val tabs = listOf("العدادات", "الفحص والتشخيص", "الاتصال والربط", "سجل الفحوصات", "تحليل الصيانة AI", "الإعدادات ⚙️")
 
+    val configuration = LocalConfiguration.current
+    val isTablet = configuration.screenWidthDp >= 600
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
-            TopAppBar(
-                title = {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = stringResource(R.string.app_title_ar),
-                            style = MaterialTheme.typography.titleLarge.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = theme.primary
-                            )
-                        )
-                        // Connection State Badge
-                        val badgeText = when (connectionState) {
-                            ObdConnectionState.DISCONNECTED -> "غير متصل"
-                            ObdConnectionState.CONNECTING -> "جاري الاتصال"
-                            ObdConnectionState.INITIALIZING -> "برمجة ELM327"
-                            ObdConnectionState.CONNECTED -> if (isSimulation) "محاكاة نشطة" else "متصل بالسيارة"
-                            ObdConnectionState.ERROR -> "خطأ اتصال"
-                        }
-                        val badgeColor = when (connectionState) {
-                            ObdConnectionState.DISCONNECTED -> Color.Gray
-                            ObdConnectionState.CONNECTING -> Color(0xFFFF9800)
-                            ObdConnectionState.INITIALIZING -> Color(0xFF2196F3)
-                            ObdConnectionState.CONNECTED -> Color(0xFF4CAF50)
-                            ObdConnectionState.ERROR -> Color(0xFFF44336)
-                        }
-                        Card(
-                            colors = CardDefaults.cardColors(containerColor = badgeColor.copy(alpha = 0.15f)),
-                            border = CardDefaults.outlinedCardBorder().copy(brush = SolidColor(badgeColor)),
-                            shape = RoundedCornerShape(8.dp)
+            if (!isTablet) {
+                TopAppBar(
+                    title = {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = badgeText,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                style = MaterialTheme.typography.labelSmall.copy(
+                                text = stringResource(R.string.app_title_ar),
+                                style = MaterialTheme.typography.titleLarge.copy(
                                     fontWeight = FontWeight.Bold,
-                                    color = badgeColor
+                                    color = theme.primary
                                 )
                             )
+                            // Connection State Badge
+                            val badgeText = when (connectionState) {
+                                ObdConnectionState.DISCONNECTED -> "غير متصل"
+                                ObdConnectionState.CONNECTING -> "جاري الاتصال"
+                                ObdConnectionState.INITIALIZING -> "برمجة ELM327"
+                                ObdConnectionState.CONNECTED -> if (isSimulation) "محاكاة نشطة" else "متصل بالسيارة"
+                                ObdConnectionState.ERROR -> "خطأ اتصال"
+                            }
+                            val badgeColor = when (connectionState) {
+                                ObdConnectionState.DISCONNECTED -> Color.Gray
+                                ObdConnectionState.CONNECTING -> Color(0xFFFF9800)
+                                ObdConnectionState.INITIALIZING -> Color(0xFF2196F3)
+                                ObdConnectionState.CONNECTED -> Color(0xFF4CAF50)
+                                ObdConnectionState.ERROR -> Color(0xFFF44336)
+                            }
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = badgeColor.copy(alpha = 0.15f)),
+                                border = CardDefaults.outlinedCardBorder().copy(brush = SolidColor(badgeColor)),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text(
+                                    text = badgeText,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = badgeColor
+                                    )
+                                )
+                            }
                         }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFF12151C),
-                    titleContentColor = Color.White
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color(0xFF12151C),
+                        titleContentColor = Color.White
+                    )
                 )
-            )
+            }
         },
         containerColor = Color(0xFF0C0E12)
     ) { innerPadding ->
         Box(modifier = Modifier.fillMaxSize()) {
-            Column(
-                modifier = Modifier
-                    .padding(innerPadding)
-                    .fillMaxSize()
+            if (isTablet) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding)
                 ) {
-            // Tab row in Arabic (Scrollable to prevent crowding)
-            ScrollableTabRow(
-                selectedTabIndex = selectedTab,
-                containerColor = Color(0xFF12151C),
-                contentColor = theme.primary,
-                edgePadding = 0.dp,
-                indicator = { tabPositions ->
-                    TabRowDefaults.SecondaryIndicator(
-                        Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
-                        color = theme.primary
-                    )
-                }
-            ) {
-                tabs.forEachIndexed { index, title ->
-                    Tab(
-                        selected = selectedTab == index,
-                        onClick = { selectedTab = index },
-                        text = {
-                            Text(
-                                text = title,
-                                color = if (selectedTab == index) theme.primary else Color.Gray,
-                                style = MaterialTheme.typography.labelMedium.copy(
-                                    fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Normal,
-                                    fontSize = 12.sp
+                    // Sidebar Navigation (starts on start/right side for RTL)
+                    Column(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .width(260.dp)
+                            .background(Color(0xFF12151C))
+                            .padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            // Logo/Title
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 20.dp),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.DirectionsCar,
+                                    contentDescription = "Car Logo",
+                                    tint = theme.primary,
+                                    modifier = Modifier.size(28.dp)
                                 )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = stringResource(R.string.app_title_ar),
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = theme.primary
+                                    )
+                                )
+                            }
+
+                            // Connection Badge inside Sidebar
+                            val badgeText = when (connectionState) {
+                                ObdConnectionState.DISCONNECTED -> "غير متصل"
+                                ObdConnectionState.CONNECTING -> "جاري الاتصال"
+                                ObdConnectionState.INITIALIZING -> "برمجة ELM327"
+                                ObdConnectionState.CONNECTED -> if (isSimulation) "محاكاة نشطة" else "متصل بالسيارة"
+                                ObdConnectionState.ERROR -> "خطأ اتصال"
+                            }
+                            val badgeColor = when (connectionState) {
+                                ObdConnectionState.DISCONNECTED -> Color.Gray
+                                ObdConnectionState.CONNECTING -> Color(0xFFFF9800)
+                                ObdConnectionState.INITIALIZING -> Color(0xFF2196F3)
+                                ObdConnectionState.CONNECTED -> Color(0xFF4CAF50)
+                                ObdConnectionState.ERROR -> Color(0xFFF44336)
+                            }
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = badgeColor.copy(alpha = 0.12f)),
+                                border = CardDefaults.outlinedCardBorder().copy(brush = SolidColor(badgeColor)),
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 24.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                                        .fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(8.dp)
+                                            .background(badgeColor, CircleShape)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = badgeText,
+                                        style = MaterialTheme.typography.labelMedium.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            color = badgeColor
+                                        )
+                                    )
+                                }
+                            }
+
+                            // Tabs list
+                            val tabIcons = listOf(
+                                Icons.Default.Speed,
+                                Icons.Default.Build,
+                                Icons.Default.Bluetooth,
+                                Icons.Default.History,
+                                Icons.Default.Psychology,
+                                Icons.Default.Settings
+                            )
+
+                            Column(
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                tabs.forEachIndexed { index, title ->
+                                    val isSelected = selectedTab == index
+                                    val itemBgColor = if (isSelected) theme.primary.copy(alpha = 0.12f) else Color.Transparent
+                                    val border = if (isSelected) BorderStroke(1.dp, theme.primary.copy(alpha = 0.4f)) else null
+                                    val contentColor = if (isSelected) theme.primary else Color.LightGray
+
+                                    Surface(
+                                        onClick = { selectedTab = index },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(48.dp),
+                                        shape = RoundedCornerShape(10.dp),
+                                        color = itemBgColor,
+                                        border = border
+                                    ) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .padding(horizontal = 12.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.End
+                                        ) {
+                                            Text(
+                                                text = title,
+                                                style = MaterialTheme.typography.labelLarge.copy(
+                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                                    fontSize = 13.sp,
+                                                    color = contentColor
+                                                ),
+                                                modifier = Modifier.weight(1f),
+                                                textAlign = TextAlign.Right
+                                            )
+                                            Spacer(modifier = Modifier.width(12.dp))
+                                            Icon(
+                                                imageVector = tabIcons[index],
+                                                contentDescription = title,
+                                                tint = contentColor,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Simulation switch inside Sidebar
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF1C1F27)),
+                            border = BorderStroke(1.dp, Color(0xFF2C3549))
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(8.dp)
+                                    .clickable { viewModel.toggleSimulation(!isSimulation) },
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Switch(
+                                    checked = isSimulation,
+                                    onCheckedChange = { viewModel.toggleSimulation(it) },
+                                    colors = SwitchDefaults.colors(
+                                        checkedThumbColor = theme.primary,
+                                        checkedTrackColor = theme.primary.copy(alpha = 0.3f),
+                                        uncheckedThumbColor = Color.Gray,
+                                        uncheckedTrackColor = Color.DarkGray
+                                    ),
+                                    modifier = Modifier.scale(0.8f)
+                                )
+                                Text(
+                                    text = "وضع المحاكاة",
+                                    color = Color.LightGray,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+
+                    // Vertical Divider line between navigation and content pane
+                    VerticalDivider(color = Color(0xFF1F2430), thickness = 1.dp)
+
+                    // Content Pane Column
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .weight(1f)
+                            .padding(16.dp)
+                    ) {
+                        // Error display banner if any
+                        errorMessage?.let { error ->
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 12.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFF441212))
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Default.Error, contentDescription = "Error", tint = Color.Red)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(text = error, color = Color.White, style = MaterialTheme.typography.bodySmall)
+                                }
+                            }
+                        }
+
+                        // Selected tab content Box
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            when (selectedTab) {
+                                0 -> GaugesView(viewModel, sensorData, isSimulation)
+                                1 -> DiagnosticView(viewModel, sensorData, isScanning)
+                                2 -> ConnectionView(viewModel, connectionState, isSimulation, pairedDevices)
+                                3 -> HistoryView(viewModel, savedHistory, frequentlyAccessedDtcs, localTrendPoints)
+                                4 -> MaintenancePredictorView(viewModel)
+                                5 -> SettingsView(viewModel)
+                            }
+                        }
+                    }
+                }
+            } else {
+                // PHONE PORTRAIT LAYOUT
+                Column(
+                    modifier = Modifier
+                        .padding(innerPadding)
+                        .fillMaxSize()
+                ) {
+                    // Tab row in Arabic (Scrollable to prevent crowding)
+                    ScrollableTabRow(
+                        selectedTabIndex = selectedTab,
+                        containerColor = Color(0xFF12151C),
+                        contentColor = theme.primary,
+                        edgePadding = 0.dp,
+                        indicator = { tabPositions ->
+                            TabRowDefaults.SecondaryIndicator(
+                                Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
+                                color = theme.primary
                             )
                         }
-                    )
-                }
-            }
-
-            // Error display banner if any
-            errorMessage?.let { error ->
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF441212))
-                ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Default.Error, contentDescription = "Error", tint = Color.Red)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(text = error, color = Color.White, style = MaterialTheme.typography.bodySmall)
+                        tabs.forEachIndexed { index, title ->
+                            Tab(
+                                selected = selectedTab == index,
+                                onClick = { selectedTab = index },
+                                text = {
+                                    Text(
+                                        text = title,
+                                        color = if (selectedTab == index) theme.primary else Color.Gray,
+                                        style = MaterialTheme.typography.labelMedium.copy(
+                                            fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Normal,
+                                            fontSize = 12.sp
+                                        )
+                                    )
+                                }
+                            )
+                        }
+                    }
+
+                    // Error display banner if any
+                    errorMessage?.let { error ->
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF441212))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.Error, contentDescription = "Error", tint = Color.Red)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(text = error, color = Color.White, style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                    }
+
+                    // Tab Views Content
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .weight(1f)
+                            .padding(12.dp)
+                    ) {
+                        when (selectedTab) {
+                            0 -> GaugesView(viewModel, sensorData, isSimulation)
+                            1 -> DiagnosticView(viewModel, sensorData, isScanning)
+                            2 -> ConnectionView(viewModel, connectionState, isSimulation, pairedDevices)
+                            3 -> HistoryView(viewModel, savedHistory, frequentlyAccessedDtcs, localTrendPoints)
+                            4 -> MaintenancePredictorView(viewModel)
+                            5 -> SettingsView(viewModel)
+                        }
                     }
                 }
             }
-
-            // Tab Views Content
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .weight(1f)
-                    .padding(12.dp)
-            ) {
-                when (selectedTab) {
-                    0 -> GaugesView(viewModel, sensorData, isSimulation)
-                    1 -> DiagnosticView(viewModel, sensorData, isScanning)
-                    2 -> ConnectionView(viewModel, connectionState, isSimulation, pairedDevices)
-                    3 -> HistoryView(viewModel, savedHistory, frequentlyAccessedDtcs, localTrendPoints)
-                    4 -> MaintenancePredictorView(viewModel)
-                    5 -> SettingsView(viewModel)
-                }
-            }
+            WarningsOverlay(
+                viewModel = viewModel,
+                modifier = Modifier.align(Alignment.TopCenter)
+            )
         }
-        WarningsOverlay(
-            viewModel = viewModel,
-            modifier = Modifier.align(Alignment.TopCenter)
-        )
     }
-}
 }
 
 data class DriveModeTheme(
@@ -4006,12 +4242,31 @@ fun DiagnosticView(
     var selectedIndexCategory by remember { mutableStateOf("الكل") }
     var expandedIndexFaultCode by remember { mutableStateOf<String?>(null) }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
+    val configuration = LocalConfiguration.current
+    val isTablet = configuration.screenWidthDp >= 600
+
+    if (isTablet) {
+        TabletDiagnosticView(
+            viewModel = viewModel,
+            data = data,
+            isScanning = isScanning,
+            terminalLogs = terminalLogs,
+            terminalCommandInput = terminalCommandInput,
+            onTerminalCommandInputChange = { terminalCommandInput = it },
+            indexSearchQuery = indexSearchQuery,
+            onIndexSearchQueryChange = { indexSearchQuery = it },
+            selectedIndexCategory = selectedIndexCategory,
+            onSelectedIndexCategoryChange = { selectedIndexCategory = it },
+            expandedIndexFaultCode = expandedIndexFaultCode,
+            onExpandedIndexFaultCodeChange = { expandedIndexFaultCode = it }
+        )
+    } else {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
         // Unified DTC Scanner Component
         DtcScannerComponent(
             viewModel = viewModel,
@@ -4564,6 +4819,7 @@ fun DiagnosticView(
         }
     }
 }
+}
 
 @Composable
 fun ConnectionView(
@@ -4616,10 +4872,25 @@ fun ConnectionView(
         }
     }
 
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
+    val configuration = LocalConfiguration.current
+    val isTablet = configuration.screenWidthDp >= 600
+
+    if (isTablet) {
+        TabletConnectionView(
+            viewModel = viewModel,
+            state = state,
+            isSimulation = isSimulation,
+            pairedDevices = pairedDevices,
+            permissionsGranted = permissionsGranted,
+            onRequestPermissions = {
+                launcher.launch(requiredPermissions.toTypedArray())
+            }
+        )
+    } else {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
         // Fast Pairing Default PIN Hint bar
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -5184,6 +5455,7 @@ fun ConnectionView(
         }
     }
 }
+}
 
 @Composable
 fun HistoryView(
@@ -5194,11 +5466,24 @@ fun HistoryView(
 ) {
     var selectedTrendSensor by remember { mutableStateOf("RPM") } // "RPM", "COOLANT", "FUEL_PRESSURE", "TURBO"
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-    ) {
+    val configuration = LocalConfiguration.current
+    val isTablet = configuration.screenWidthDp >= 600
+
+    if (isTablet) {
+        TabletHistoryView(
+            viewModel = viewModel,
+            history = history,
+            frequentlyAccessedDtcs = frequentlyAccessedDtcs,
+            localTrendPoints = localTrendPoints,
+            selectedTrendSensor = selectedTrendSensor,
+            onSelectedTrendSensorChange = { selectedTrendSensor = it }
+        )
+    } else {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+        ) {
         // Top Action bar
         Row(
             modifier = Modifier
@@ -5657,6 +5942,7 @@ fun HistoryView(
             }
         }
     }
+}
 }
 
 // Gorgeous Custom Gauges Drawn dynamically with Canvas
@@ -8801,4 +9087,1414 @@ fun SettingsView(
         }
     }
 }
+
+@Composable
+fun TabletDiagnosticView(
+    viewModel: ObdViewModel,
+    data: com.example.data.obd.ObdSensorData,
+    isScanning: Boolean,
+    terminalLogs: List<String>,
+    terminalCommandInput: String,
+    onTerminalCommandInputChange: (String) -> Unit,
+    indexSearchQuery: String,
+    onIndexSearchQueryChange: (String) -> Unit,
+    selectedIndexCategory: String,
+    onSelectedIndexCategoryChange: (String) -> Unit,
+    expandedIndexFaultCode: String?,
+    onExpandedIndexFaultCodeChange: (String?) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxSize(),
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // Right Column in RTL (Main Diagnostics, active scanner & terminal console)
+        Column(
+            modifier = Modifier
+                .weight(1.1f)
+                .fillMaxHeight()
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            DtcScannerComponent(
+                viewModel = viewModel,
+                data = data,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            // Predefined & Custom OBD Terminal Console
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF11141B)),
+                border = BorderStroke(1.dp, Color(0xFF2C3549))
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        TextButton(onClick = { viewModel.clearTerminalLogs() }) {
+                            Text("مسح الشاشة 🧹", color = Color(0xFFFFB300), fontSize = 11.sp)
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "منفذ أوامر OBD المباشر والمتقدم (Terminal Console)",
+                                color = Color.White,
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Icon(Icons.Default.Code, contentDescription = "Terminal", tint = Color(0xFFFFB300))
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+                    
+                    // Quick chips selector
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        val quickCommands = listOf("ATZ", "ATRV", "010C", "0902", "03", "04")
+                        quickCommands.forEach { cmd ->
+                            SuggestionChip(
+                                onClick = { onTerminalCommandInputChange(cmd) },
+                                label = { Text(cmd, fontSize = 10.sp, color = Color.White) },
+                                colors = SuggestionChipDefaults.suggestionChipColors(containerColor = Color(0xFF1E2530))
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Terminal Display Panel
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(160.dp)
+                            .background(Color.Black, RoundedCornerShape(6.dp))
+                            .border(1.dp, Color(0xFF2C3549), RoundedCornerShape(6.dp))
+                            .padding(10.dp)
+                    ) {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            reverseLayout = true
+                        ) {
+                            items(terminalLogs.reversed()) { log ->
+                                Text(
+                                    text = log,
+                                    color = if (log.startsWith(">")) Color(0xFF00E5FF) else Color(0xFF4CAF50),
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    textAlign = TextAlign.Left
+                                )
+                            }
+                            if (terminalLogs.isEmpty()) {
+                                item {
+                                    Text(
+                                        text = "جاهز لاستقبال الأوامر...\nأرسل ATZ لتصفير المحول أو ATRV لقراءة جهد البطارية.",
+                                        color = Color.DarkGray,
+                                        fontSize = 11.sp,
+                                        fontFamily = FontFamily.Monospace,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        textAlign = TextAlign.Left
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Input Row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        IconButton(
+                            onClick = {
+                                if (terminalCommandInput.isNotEmpty()) {
+                                    viewModel.sendTerminalCommand(terminalCommandInput)
+                                    onTerminalCommandInputChange("")
+                                }
+                            },
+                            modifier = Modifier
+                                .size(42.dp)
+                                .background(Color(0xFFFFB300), RoundedCornerShape(6.dp))
+                        ) {
+                            Icon(Icons.Default.Send, contentDescription = "Send Command", tint = Color.Black)
+                        }
+
+                        TextField(
+                            value = terminalCommandInput,
+                            onValueChange = onTerminalCommandInputChange,
+                            modifier = Modifier.weight(1f).height(50.dp),
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = Color(0xFF1E2530),
+                                unfocusedContainerColor = Color(0xFF1E2530),
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White,
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent
+                            ),
+                            placeholder = { Text("أدخل كود OBD أو أمر AT...", fontSize = 12.sp, color = Color.Gray) },
+                            shape = RoundedCornerShape(6.dp),
+                            singleLine = true
+                        )
+                    }
+                }
+            }
+
+            // Simulator Injection tools (For Kia Carens 2008 CRDi test validation)
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF161922))
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "حقن وافتراض أعطال الديزل للتجربة",
+                        color = Color.LightGray,
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = TextAlign.Right
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        KiaCarensFaults.AVAILABLE_FAULTS.take(4).forEach { fault ->
+                            Button(
+                                onClick = { viewModel.injectFault(fault) },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF37474F)),
+                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 6.dp)
+                            ) {
+                                Text(
+                                    text = "افتراض ${fault.code}",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Left Column in RTL (Active Tests & Search Index)
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight()
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Active Tests & Coding Component
+            ActiveTestsComponent(
+                viewModel = viewModel,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            // Sensors and Explorer
+            SensorsAndMileageExplorerComponent(data = data, viewModel = viewModel)
+
+            // Card: DTC Search Index & Encyclopedia
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF11141B)),
+                border = BorderStroke(1.dp, Color(0xFF2C3549))
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    // Header with icon and title
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "دليل وفهرس البحث في أكواد أعطال كيا (DTC Index)",
+                            color = Color.White,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Right
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Icon(
+                            imageVector = Icons.Default.Book, 
+                            contentDescription = "DTC Encyclopedia", 
+                            tint = Color(0xFFFFB300)
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.height(6.dp))
+                    
+                    Text(
+                        text = "فهرس تفاعلي للرموز القياسية والأكواد الخاصة بسيارات كيا (مثل P1186 أو P0401) مع المسببات وحلول المعايرة برمجياً وميكانيكياً.",
+                        color = Color.Gray,
+                        fontSize = 10.sp,
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = TextAlign.Right
+                    )
+                    
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    // Search TextField
+                    TextField(
+                        value = indexSearchQuery,
+                        onValueChange = onIndexSearchQueryChange,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = Color(0xFF161A22),
+                            unfocusedContainerColor = Color(0xFF161A22),
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedIndicatorColor = Color(0xFFFFB300),
+                            unfocusedIndicatorColor = Color.Transparent
+                        ),
+                        placeholder = { Text("ابحث برقم الكود أو الكلمة (مثال: ضغط، EGR، حرارة)...", fontSize = 11.sp, color = Color.Gray) },
+                        trailingIcon = { Icon(Icons.Default.Search, contentDescription = "Search", tint = Color.Gray) },
+                        shape = RoundedCornerShape(6.dp),
+                        singleLine = true
+                    )
+                    
+                    Spacer(modifier = Modifier.height(10.dp))
+                    
+                    // Categories Quick Filters
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.End),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val categories = listOf("الكل", "كيا فقط", "المحرك", "ناقل الحركة", "الانبعاثات", "الهيكل")
+                        categories.forEach { cat ->
+                            val isSelected = selectedIndexCategory == cat
+                            Card(
+                                modifier = Modifier.clickable { onSelectedIndexCategoryChange(cat) },
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (isSelected) Color(0xFFFFB300) else Color(0xFF1E2530)
+                                ),
+                                shape = RoundedCornerShape(6.dp),
+                                border = BorderStroke(1.dp, if (isSelected) Color(0xFFFFD54F) else Color(0xFF2C3549))
+                            ) {
+                                Text(
+                                    text = cat,
+                                    color = if (isSelected) Color.Black else Color.White,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
+                            }
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    // Filter the static encyclopedia list in real-time
+                    val filteredDtcList = remember(selectedIndexCategory, indexSearchQuery) {
+                        com.example.data.obd.KiaDtcDatabase.DTC_LIST.filter { dtc ->
+                            val matchesCategory = when (selectedIndexCategory) {
+                                "الكل" -> true
+                                "كيا فقط" -> dtc.isKiaSpecific
+                                "المحرك" -> dtc.category.contains("المحرك")
+                                "ناقل الحركة" -> dtc.category.contains("الحركة") || dtc.category.contains("ناقل")
+                                "الانبعاثات" -> dtc.category.contains("العادم") || dtc.category.contains("الانبعاثات")
+                                "الهيكل" -> dtc.category.contains("الهيكل") || dtc.category.contains("التعليق")
+                                else -> true
+                            }
+                            
+                            val matchesQuery = if (indexSearchQuery.isEmpty()) {
+                                true
+                            } else {
+                                val q = indexSearchQuery.trim().lowercase()
+                                dtc.code.lowercase().contains(q) ||
+                                        dtc.descriptionAr.contains(q) ||
+                                        dtc.descriptionEn.lowercase().contains(q) ||
+                                        dtc.category.lowercase().contains(q) ||
+                                        dtc.symptoms.any { it.contains(q) } ||
+                                        dtc.causes.any { it.contains(q) } ||
+                                        dtc.solutions.any { it.contains(q) }
+                            }
+                            
+                            matchesCategory && matchesQuery
+                        }
+                    }
+                    
+                    // Result Count
+                    Text(
+                        text = "تم العثور على ${filteredDtcList.size} رمز عطل مطبق",
+                        color = Color(0xFFFFB300),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = TextAlign.Right
+                    )
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    // Limited-height Box to avoid taking infinite vertical space on search
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 400.dp)
+                    ) {
+                        val scope = rememberCoroutineScope()
+                        var selfHealingCode by remember { mutableStateOf<String?>(null) }
+                        var selfHealingProgress by remember { mutableStateOf(0f) }
+                        var healingMessage by remember { mutableStateOf("") }
+
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            if (filteredDtcList.isEmpty()) {
+                                Text(
+                                    text = "عذراً، لم نجد أكواد أعطال تطابق بحثك. جرب البحث عن 'EGR' أو 'P11' أو 'بخاخ'.",
+                                    color = Color.Gray,
+                                    fontSize = 11.sp,
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+                                    textAlign = TextAlign.Center
+                                )
+                            } else {
+                                filteredDtcList.forEach { dtc ->
+                                    val isExpanded = expandedIndexFaultCode == dtc.code
+                                    Card(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable {
+                                                onExpandedIndexFaultCodeChange(if (isExpanded) null else dtc.code)
+                                            },
+                                        colors = CardDefaults.cardColors(containerColor = Color(0xFF1C1F27)),
+                                        border = BorderStroke(1.dp, Color(0xFF2C3549))
+                                    ) {
+                                        Column(modifier = Modifier.padding(12.dp)) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Icon(
+                                                    imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                                    contentDescription = "Expand",
+                                                    tint = Color.Gray
+                                                )
+                                                
+                                                Column(horizontalAlignment = Alignment.End, modifier = Modifier.weight(1f).padding(horizontal = 12.dp)) {
+                                                    Text(
+                                                        text = dtc.descriptionAr,
+                                                        color = Color.White,
+                                                        fontWeight = FontWeight.Bold,
+                                                        fontSize = 12.sp,
+                                                        textAlign = TextAlign.Right
+                                                    )
+                                                    Text(
+                                                        text = "${dtc.descriptionEn} • ${dtc.category}",
+                                                        color = Color.LightGray,
+                                                        fontSize = 10.sp,
+                                                        textAlign = TextAlign.Right
+                                                    )
+                                                }
+                                                
+                                                Card(
+                                                    colors = CardDefaults.cardColors(containerColor = if (dtc.isKiaSpecific) Color(0xFFFFD54F).copy(alpha = 0.15f) else Color(0xFFEF5350).copy(alpha = 0.15f)),
+                                                    border = BorderStroke(1.dp, if (dtc.isKiaSpecific) Color(0xFFFFD54F) else Color(0xFFEF5350)),
+                                                    shape = RoundedCornerShape(4.dp)
+                                                ) {
+                                                    Text(
+                                                        text = dtc.code,
+                                                        color = if (dtc.isKiaSpecific) Color(0xFFFFD54F) else Color(0xFFEF5350),
+                                                        fontWeight = FontWeight.Bold,
+                                                        fontSize = 12.sp,
+                                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                                )
+                                                }
+                                            }
+                                            
+                                            AnimatedVisibility(
+                                                visible = isExpanded,
+                                                enter = fadeIn() + expandVertically(),
+                                                exit = shrinkVertically() + fadeOut()
+                                            ) {
+                                                Column(modifier = Modifier.padding(top = 12.dp)) {
+                                                    Divider(color = Color(0xFF2C3549))
+                                                    Spacer(modifier = Modifier.height(8.dp))
+                                                    
+                                                    // Symptoms (الأعراض)
+                                                    Text(
+                                                        text = "الأعراض المصاحبة للعطل (Symptoms):",
+                                                        color = Color(0xFFFFB300),
+                                                        style = MaterialTheme.typography.labelMedium,
+                                                        fontWeight = FontWeight.Bold,
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        textAlign = TextAlign.Right
+                                                    )
+                                                    dtc.symptoms.forEach { sym ->
+                                                        Text(
+                                                            text = "• $sym",
+                                                            color = Color.LightGray,
+                                                            fontSize = 11.sp,
+                                                            modifier = Modifier.fillMaxWidth().padding(vertical = 1.dp),
+                                                            textAlign = TextAlign.Right
+                                                        )
+                                                    }
+                                                    
+                                                    Spacer(modifier = Modifier.height(8.dp))
+                                                    
+                                                    // Causes (الأسباب)
+                                                    Text(
+                                                        text = "المسببات الرئيسية للعطل (Possible Causes):",
+                                                        color = Color(0xFFFF8A80),
+                                                        style = MaterialTheme.typography.labelMedium,
+                                                        fontWeight = FontWeight.Bold,
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        textAlign = TextAlign.Right
+                                                    )
+                                                    dtc.causes.forEach { cause ->
+                                                        Text(
+                                                            text = "• $cause",
+                                                            color = Color.LightGray,
+                                                            fontSize = 11.sp,
+                                                            modifier = Modifier.fillMaxWidth().padding(vertical = 1.dp),
+                                                            textAlign = TextAlign.Right
+                                                        )
+                                                    }
+                                                    
+                                                    Spacer(modifier = Modifier.height(8.dp))
+                                                    
+                                                    // Solutions (الحلول)
+                                                    Text(
+                                                        text = "الحلول الموصى بها للإصلاح (Recommended Solutions):",
+                                                        color = Color(0xFF81C784),
+                                                        style = MaterialTheme.typography.labelMedium,
+                                                        fontWeight = FontWeight.Bold,
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        textAlign = TextAlign.Right
+                                                    )
+                                                    dtc.solutions.forEachIndexed { idx, sol ->
+                                                        Text(
+                                                            text = "${idx + 1}. $sol",
+                                                            color = Color.White,
+                                                            fontSize = 11.sp,
+                                                            modifier = Modifier.fillMaxWidth().padding(vertical = 1.dp),
+                                                            textAlign = TextAlign.Right
+                                                        )
+                                                    }
+                                                    
+                                                    Spacer(modifier = Modifier.height(12.dp))
+                                                    Divider(color = Color(0xFF2C3549))
+                                                    Spacer(modifier = Modifier.height(8.dp))
+
+                                                    // Interactive smart self-fix inside component!
+                                                    if (selfHealingCode == dtc.code) {
+                                                        Column(
+                                                            modifier = Modifier.fillMaxWidth(),
+                                                            horizontalAlignment = Alignment.CenterHorizontally
+                                                        ) {
+                                                            Text(
+                                                                text = "جاري الإصلاح الذاتي والتهيئة والمسح...",
+                                                                color = Color(0xFFFFB300),
+                                                                fontSize = 11.sp,
+                                                                fontWeight = FontWeight.Bold
+                                                            )
+                                                            Spacer(modifier = Modifier.height(6.dp))
+                                                            LinearProgressIndicator(
+                                                                progress = selfHealingProgress,
+                                                                modifier = Modifier.fillMaxWidth().height(6.dp),
+                                                                color = Color(0xFF4CAF50),
+                                                                trackColor = Color(0xFF2E2E2E)
+                                                            )
+                                                            Spacer(modifier = Modifier.height(4.dp))
+                                                            Text(
+                                                                text = healingMessage,
+                                                                color = Color.LightGray,
+                                                                fontSize = 10.sp,
+                                                                textAlign = TextAlign.Center
+                                                            )
+
+                                                            if (selfHealingProgress >= 1f) {
+                                                                Spacer(modifier = Modifier.height(6.dp))
+                                                                Text(
+                                                                    text = "✅ تمت المعايرة الذكية بنجاح! يرجى الضغط على 'مسح الأعطال' لتأكيد تصفير ECU.",
+                                                                    color = Color(0xFF81C784),
+                                                                    fontSize = 11.sp,
+                                                                    fontWeight = FontWeight.Bold,
+                                                                    textAlign = TextAlign.Center
+                                                                )
+                                                            }
+                                                        }
+                                                    } else {
+                                                        Button(
+                                                            onClick = {
+                                                                selfHealingCode = dtc.code
+                                                                selfHealingProgress = 0f
+                                                                scope.launch {
+                                                                    val stepsMessages = listOf(
+                                                                        "جاري قراءة المعطيات اللحظية للحساس...",
+                                                                        "جاري إيقاف صمام الموديول مؤقتاً لحماية الدائرة...",
+                                                                        "جاري تصفير عدادات الحساس وإرجاع قيم التعلم الافتراضية للديزل...",
+                                                                        "تمت التهيئة البرمجية الذكية بنجاح بنسبة 100%!"
+                                                                    )
+                                                                    for (i in 0..10) {
+                                                                        delay(200)
+                                                                        selfHealingProgress = i / 10f
+                                                                        healingMessage = when {
+                                                                            i < 3 -> stepsMessages[0]
+                                                                            i < 6 -> stepsMessages[1]
+                                                                            i < 9 -> stepsMessages[2]
+                                                                            else -> stepsMessages[3]
+                                                                        }
+                                                                    }
+                                                                }
+                                                            },
+                                                            modifier = Modifier.fillMaxWidth(),
+                                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E2530)),
+                                                            shape = RoundedCornerShape(6.dp)
+                                                        ) {
+                                                            Text(
+                                                                text = "🔧 معايرة برمجية ذكية للحساس (Smart Recalibration)",
+                                                                fontSize = 11.sp,
+                                                                fontWeight = FontWeight.Bold,
+                                                                color = Color.White
+                                                            )
+                                                        }
+                                                    }
+                                                    
+                                                    Spacer(modifier = Modifier.height(8.dp))
+                                                    
+                                                    // Simulator Inject Action Button
+                                                    Button(
+                                                        onClick = {
+                                                            viewModel.injectFault(
+                                                                com.example.data.obd.DtcInfo(
+                                                                    code = dtc.code,
+                                                                    descriptionAr = dtc.descriptionAr,
+                                                                    descriptionEn = dtc.descriptionEn,
+                                                                    category = dtc.category
+                                                                )
+                                                            )
+                                                        },
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF455A64)),
+                                                        shape = RoundedCornerShape(6.dp)
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = Icons.Default.BugReport, 
+                                                            contentDescription = "Inject fault",
+                                                            tint = Color(0xFFEF5350)
+                                                        )
+                                                        Spacer(modifier = Modifier.width(8.dp))
+                                                        Text(
+                                                            text = "🧪 حقن ومحاكاة هذا العطل في السيارة لتجربة نظام الفحص",
+                                                            fontSize = 11.sp,
+                                                            fontWeight = FontWeight.Bold
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun TabletConnectionView(
+    viewModel: ObdViewModel,
+    state: ObdConnectionState,
+    isSimulation: Boolean,
+    pairedDevices: List<com.example.data.obd.BtDevice>,
+    permissionsGranted: Boolean,
+    onRequestPermissions: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxSize(),
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // Right Column: Connection Modes, Settings, and Status Information
+        Column(
+            modifier = Modifier
+                .weight(1.1f)
+                .fillMaxHeight()
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Fast Pairing Default PIN Hint bar
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF112111)),
+                border = CardDefaults.outlinedCardBorder().copy(brush = SolidColor(Color(0xFF2E7D32)))
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.Info, contentDescription = "Pin Hint", tint = Color(0xFF4CAF50))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "أجهزة البلوتوث التقليدية تتطلب إقراناً مسبقاً (PIN: 1234). أما أجهزة BLE الذكية فتتصل مباشرة دون إقران مسبق.",
+                        color = Color(0xFF81C784),
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Right,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+
+            // Quick Selector: Simulation vs Real OBD Device
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF161922))
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "وضع تشغيل التطبيق والاتصال",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleSmall,
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = TextAlign.Right
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Button(
+                            onClick = { viewModel.toggleSimulation(false) },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (!isSimulation) Color(0xFFFFB300) else Color(0xFF2D323E),
+                                contentColor = if (!isSimulation) Color.Black else Color.White
+                            )
+                        ) {
+                            Icon(Icons.Default.Bluetooth, contentDescription = "BT")
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("جهاز بلوتوث حقيقي")
+                        }
+
+                        Button(
+                            onClick = { viewModel.toggleSimulation(true) },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isSimulation) Color(0xFFFFB300) else Color(0xFF2D323E),
+                                contentColor = if (isSimulation) Color.Black else Color.White
+                            )
+                        ) {
+                            Icon(Icons.Default.Dashboard, contentDescription = "Simulator")
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("محاكاة النظام")
+                        }
+                    }
+                }
+            }
+
+            // Current Connection Status Panel
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF11141B)),
+                border = BorderStroke(1.dp, Color(0xFF2C3549))
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "حالة الاتصال بالموصل (OBD Connection Status)",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleSmall,
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = TextAlign.Right
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    val statusText = when (state) {
+                        com.example.data.obd.ObdConnectionState.DISCONNECTED -> "مفصول 🔴"
+                        com.example.data.obd.ObdConnectionState.CONNECTING -> "جاري الاتصال... 🟡"
+                        com.example.data.obd.ObdConnectionState.INITIALIZING -> "برمجة ELM327... 🔵"
+                        com.example.data.obd.ObdConnectionState.CONNECTED -> "متصل بنجاح 🟢"
+                        com.example.data.obd.ObdConnectionState.ERROR -> "خطأ في الاتصال ❌"
+                    }
+                    val statusColor = when (state) {
+                        com.example.data.obd.ObdConnectionState.DISCONNECTED -> Color(0xFFEF5350)
+                        com.example.data.obd.ObdConnectionState.CONNECTING -> Color(0xFFFFB300)
+                        com.example.data.obd.ObdConnectionState.INITIALIZING -> Color(0xFF2196F3)
+                        com.example.data.obd.ObdConnectionState.CONNECTED -> Color(0xFF81C784)
+                        com.example.data.obd.ObdConnectionState.ERROR -> Color(0xFFEF5350)
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (state == com.example.data.obd.ObdConnectionState.CONNECTED || state == com.example.data.obd.ObdConnectionState.CONNECTING || state == com.example.data.obd.ObdConnectionState.INITIALIZING) {
+                            Button(
+                                onClick = { viewModel.disconnect() },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF5350)),
+                                shape = RoundedCornerShape(6.dp)
+                            ) {
+                                Text("قطع الاتصال", color = Color.White, fontWeight = FontWeight.Bold)
+                            }
+                        } else {
+                            Box(modifier = Modifier.size(1.dp))
+                        }
+
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text(
+                                text = statusText,
+                                color = statusColor,
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            if (state == com.example.data.obd.ObdConnectionState.CONNECTED) {
+                                Text(
+                                    text = "معدل تدفق البيانات نشط • كيا كارنز 2.0 CRDi VGT",
+                                    color = Color.Gray,
+                                    fontSize = 11.sp
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Left Column: Paired/Scanned Devices List or Simulator Status
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight()
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            if (isSimulation) {
+                // Visual Simulator Card explaining the setup
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF12151C)),
+                    border = CardDefaults.outlinedCardBorder().copy(brush = SolidColor(Color(0xFF232B3A)))
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                Icons.Default.DirectionsCar,
+                                contentDescription = "Carens simulator status",
+                                tint = Color(0xFFFFB300),
+                                modifier = Modifier.size(100.dp)
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "تطبيق الفحص يعمل الآن في 'وضع المحاكاة الافتراضي'",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleMedium,
+                                textAlign = TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = "يتيح لك هذا الوضع اختبار الأكواد وتجربة لوحة العدادات المضيئة وتدفق البيانات لسيارة Kia Carens 2008 CRDi دون الحاجة لتوصيل سيارة حقيقية بالكمبيوتر.",
+                                color = Color.LightGray,
+                                style = MaterialTheme.typography.bodyMedium,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                }
+            } else {
+                // If not simulation: Show device scanning and selector lists!
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF11141B)),
+                    border = BorderStroke(1.dp, Color(0xFF232B3A))
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            IconButton(
+                                onClick = { viewModel.refreshPairedDevices() },
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .background(Color(0xFF1E2530), CircleShape)
+                            ) {
+                                Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = Color.White)
+                            }
+
+                            Text(
+                                text = "الأجهزة المقترنة مسبقاً (Paired Devices)",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleSmall,
+                                textAlign = TextAlign.Right
+                            )
+                        }
+                        
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        if (!permissionsGranted) {
+                            Button(
+                                onClick = onRequestPermissions,
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFB300))
+                            ) {
+                                Text("منح صلاحيات البلوتوث للبحث عن الموصل 🛡️", color = Color.Black, fontWeight = FontWeight.Bold)
+                            }
+                        } else if (pairedDevices.isEmpty()) {
+                            Text(
+                                text = "لم يتم العثور على أجهزة مقترنة. يرجى إقران موصل ELM327 من إعدادات البلوتوث للنظام أولاً.",
+                                color = Color.Gray,
+                                fontSize = 12.sp,
+                                textAlign = TextAlign.Right,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        } else {
+                            pairedDevices.forEach { device ->
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 4.dp)
+                                        .clickable { viewModel.connectDevice(device.address) },
+                                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1E2530))
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(12.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(Icons.Default.BluetoothConnected, contentDescription = null, tint = Color(0xFFFFB300))
+                                        
+                                        Column(horizontalAlignment = Alignment.End) {
+                                            Text(
+                                                text = device.name ?: "جهاز بدون اسم",
+                                                color = Color.White,
+                                                fontWeight = FontWeight.Bold,
+                                                style = MaterialTheme.typography.bodyMedium
+                                            )
+                                            Text(
+                                                text = device.address,
+                                                color = Color.Gray,
+                                                style = MaterialTheme.typography.labelSmall
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun TabletHistoryView(
+    viewModel: ObdViewModel,
+    history: List<DtcRecord>,
+    frequentlyAccessedDtcs: List<FrequentlyAccessedDtc>,
+    localTrendPoints: List<HistoricalTrendPoint>,
+    selectedTrendSensor: String,
+    onSelectedTrendSensorChange: (String) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxSize(),
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // Right Column: SQLite Trends, Chart & Top Action Bar
+        Column(
+            modifier = Modifier
+                .weight(1.1f)
+                .fillMaxHeight()
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Top Action bar
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Button(
+                    onClick = { viewModel.clearDbHistory() },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC62828)),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Icon(Icons.Default.DeleteSweep, contentDescription = "Clear History", tint = Color.White)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("تصفير الأرشيف والكاش المحلي", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
+                Text(
+                    text = "الأرشيف والمخزن المحلي (Offline SQLite)",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleSmall
+                )
+            }
+
+            // Section 2: Historical Trends Offline Line Charts (SQLite persistence)
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF0D1017)),
+                border = BorderStroke(1.dp, Color(0xFF1E2530))
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "مؤشرات الحركة التاريخية المحفوظة (Offline Sensors Archive)",
+                            color = Color(0xFF00E5FF),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp
+                        )
+                        Icon(
+                            imageVector = Icons.Default.Timeline,
+                            contentDescription = "Trends",
+                            tint = Color(0xFF00E5FF),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "يتم تسجيل قراءات الحساسات تلقائياً كل 5 ثوانٍ في قاعدة البيانات المحلية لعرض أنماط القيادة السابقة دون اتصال.",
+                        color = Color.Gray,
+                        fontSize = 10.sp,
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = TextAlign.Right
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Sensors Tabs to choose trend
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.End),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        listOf(
+                            "TURBO" to "التربو (Bar)",
+                            "FUEL_PRESSURE" to "ضغط المشترك (Bar)",
+                            "COOLANT" to "حرارة المحرك (C°)",
+                            "RPM" to "دوران المحرك (RPM)"
+                        ).forEach { (key, display) ->
+                            val isSel = selectedTrendSensor == key
+                            Card(
+                                modifier = Modifier.clickable { onSelectedTrendSensorChange(key) },
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (isSel) Color(0xFF00E5FF) else Color(0xFF1E2530)
+                                ),
+                                shape = RoundedCornerShape(6.dp),
+                                border = BorderStroke(1.dp, if (isSel) Color(0xFF80DEEA) else Color(0xFF2C3549))
+                            ) {
+                                Text(
+                                    text = display,
+                                    color = if (isSel) Color.Black else Color.White,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    if (localTrendPoints.size < 2) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(160.dp)
+                                .background(Color(0xFF05070A), RoundedCornerShape(8.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "جاري تجميع نقاط الأداء التاريخية... (شغل المحرك لتسجيل البيانات محلياً)",
+                                color = Color.Gray,
+                                fontSize = 11.sp,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    } else {
+                        // Line Chart Drawn Dynamically using local SQLite Trend Points
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(180.dp)
+                                .background(Color(0xFF05070A), RoundedCornerShape(8.dp))
+                                .border(1.dp, Color(0xFF121620), RoundedCornerShape(8.dp))
+                                .padding(8.dp)
+                        ) {
+                            Canvas(modifier = Modifier.fillMaxSize()) {
+                                val w = size.width
+                                val h = size.height
+                                
+                                // Draw Grid Lines
+                                val grids = 3
+                                for (i in 0..grids) {
+                                    val yGrid = (h / grids) * i
+                                    drawLine(
+                                        color = Color(0xFF161C26),
+                                        start = Offset(0f, yGrid),
+                                        end = Offset(w, yGrid),
+                                        strokeWidth = 1f,
+                                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(5f, 5f), 0f)
+                                    )
+                                }
+
+                                val pointsToDraw = localTrendPoints.takeLast(40) // limit to last 40 points in graph
+                                val pointsCount = pointsToDraw.size
+                                val stepX = w / (pointsCount - 1).coerceAtLeast(1)
+
+                                val trendPath = Path()
+                                val areaPath = Path()
+
+                                pointsToDraw.forEachIndexed { idx, pt ->
+                                    val valueRatio = when (selectedTrendSensor) {
+                                        "RPM" -> (pt.rpm.toFloat() / 4500f).coerceIn(0f, 1f)
+                                        "COOLANT" -> (pt.coolantTemp.toFloat() / 120f).coerceIn(0f, 1f)
+                                        "FUEL_PRESSURE" -> (pt.fuelPressure.toFloat() / 1600f).coerceIn(0f, 1f)
+                                        "TURBO" -> (pt.turboBoostPressure.toFloat() / 2.0f).coerceIn(0f, 1f)
+                                        else -> 0f
+                                    }
+
+                                    val x = idx * stepX
+                                    val y = h - (valueRatio * h)
+
+                                    if (idx == 0) {
+                                        trendPath.moveTo(x, y)
+                                        areaPath.moveTo(x, h)
+                                        areaPath.lineTo(x, y)
+                                    } else {
+                                        trendPath.lineTo(x, y)
+                                        areaPath.lineTo(x, y)
+                                    }
+
+                                    if (idx == pointsCount - 1) {
+                                        areaPath.lineTo(x, h)
+                                        areaPath.close()
+                                    }
+                                }
+
+                                val themeColor = when (selectedTrendSensor) {
+                                    "RPM" -> Color(0xFFFFB300)
+                                    "COOLANT" -> Color(0xFFEF5350)
+                                    "FUEL_PRESSURE" -> Color(0xFF4CAF50)
+                                    "TURBO" -> Color(0xFF00E5FF)
+                                    else -> Color.White
+                                }
+
+                                // Fill area
+                                drawPath(
+                                    path = areaPath,
+                                    brush = Brush.verticalGradient(
+                                        colors = listOf(themeColor.copy(alpha = 0.2f), Color.Transparent)
+                                    )
+                                )
+
+                                // Draw Line
+                                drawPath(
+                                    path = trendPath,
+                                    color = themeColor,
+                                    style = androidx.compose.ui.graphics.drawscope.Stroke(
+                                        width = 3f
+                                    )
+                                )
+                            }
+                        }
+                        
+                        // Live Indicators
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            val latest = localTrendPoints.last()
+                            val valueDisplay = when (selectedTrendSensor) {
+                                "RPM" -> "${latest.rpm} دورة/دقيقة"
+                                "COOLANT" -> "${latest.coolantTemp} °م"
+                                "FUEL_PRESSURE" -> "${latest.fuelPressure} بار"
+                                "TURBO" -> "${"%.2f".format(latest.turboBoostPressure)} بار"
+                                else -> ""
+                            }
+                            
+                            Text(
+                                text = "عدد القراءات المخزنة حالياً: ${localTrendPoints.size} قراءة",
+                                color = Color.Gray,
+                                fontSize = 10.sp
+                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "آخر قراءة محفوظة: $valueDisplay",
+                                    color = Color.LightGray,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .background(Color(0xFF00E5FF), RoundedCornerShape(3.dp))
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Left Column: Saved DTC cache & Scanned reports history
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight()
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Frequently Accessed DTCs offline Cache
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF11141B)),
+                border = BorderStroke(1.dp, Color(0xFF1E2530))
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "كاش الرموز الأكثر زيارة دون اتصال بالإنترنت",
+                            color = Color(0xFFFFB300),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp
+                        )
+                        Icon(
+                            imageVector = Icons.Default.CloudOff,
+                            contentDescription = "Offline Cache",
+                            tint = Color(0xFFFFB300),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "DTC Offline Read Cache - يتم تخزين الأكواد تلقائياً لتظل متاحة دون إنترنت.",
+                        color = Color.Gray,
+                        fontSize = 10.sp,
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = TextAlign.Right
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    if (frequentlyAccessedDtcs.isEmpty()) {
+                        Text(
+                            text = "لا توجد رموز مستعرضة في الكاش المحلي حالياً. تصفح دليل الأعطال لحفظ الرموز تلقائياً.",
+                            color = Color.Gray,
+                            fontSize = 11.sp,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 12.dp),
+                            textAlign = TextAlign.Center
+                        )
+                    } else {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            frequentlyAccessedDtcs.forEach { dtc ->
+                                Card(
+                                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1E2530)),
+                                    border = BorderStroke(1.dp, Color(0xFF2C3549)),
+                                    shape = RoundedCornerShape(8.dp),
+                                    modifier = Modifier.widthIn(max = 160.dp)
+                                ) {
+                                    Column(modifier = Modifier.padding(8.dp)) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Card(
+                                                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFB300).copy(alpha = 0.15f)),
+                                                shape = RoundedCornerShape(4.dp)
+                                            ) {
+                                                Text(
+                                                    text = "👁 ${dtc.accessCount}",
+                                                    color = Color(0xFFFFB300),
+                                                    fontSize = 9.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                                                )
+                                            }
+                                            Text(
+                                                text = dtc.code,
+                                                color = Color.White,
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 12.sp
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = dtc.descriptionAr,
+                                            color = Color.LightGray,
+                                            fontSize = 10.sp,
+                                            maxLines = 1,
+                                            modifier = Modifier.fillMaxWidth(),
+                                            textAlign = TextAlign.Right
+                                        )
+                                        Text(
+                                            text = dtc.category,
+                                            color = Color.Gray,
+                                            fontSize = 8.sp,
+                                            modifier = Modifier.fillMaxWidth(),
+                                            textAlign = TextAlign.Right
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Scanned reports history
+            Text(
+                text = "أرشيف تقارير فحص السيارة وتصفير الأخطاء",
+                color = Color.LightGray,
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.sp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                textAlign = TextAlign.Right
+            )
+
+            if (history.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(140.dp)
+                        .background(Color(0xFF11141B), RoundedCornerShape(12.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            Icons.Default.History,
+                            contentDescription = "Empty",
+                            tint = Color.Gray,
+                            modifier = Modifier.size(48.dp)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "أرشيف الفحص فارغ. ابدأ فحصاً في السيارة لحفظ الأخطاء.",
+                            color = Color.Gray,
+                            fontSize = 11.sp
+                        )
+                    }
+                }
+            } else {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    history.forEach { record ->
+                        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault())
+                        val dateStr = sdf.format(java.util.Date(record.timestamp))
+
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF161922))
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .padding(12.dp)
+                                    .fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                val badgeColor = if (record.status == "Active") Color(0xFFE53935) else Color(0xFF4CAF50)
+                                Card(
+                                    colors = CardDefaults.cardColors(containerColor = badgeColor.copy(alpha = 0.15f)),
+                                    border = CardDefaults.outlinedCardBorder().copy(brush = SolidColor(badgeColor)),
+                                    shape = RoundedCornerShape(4.dp)
+                                ) {
+                                    Text(
+                                        text = if (record.status == "Active") "عطل نشط" else "تم مسحه",
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = badgeColor
+                                    )
+                                }
+
+                                Column(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .padding(horizontal = 12.dp),
+                                    horizontalAlignment = Alignment.End
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = record.code,
+                                            color = Color(0xFFFFB300),
+                                            fontWeight = FontWeight.Bold,
+                                            style = MaterialTheme.typography.bodyMedium
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = dateStr,
+                                            color = Color.Gray,
+                                            fontSize = 10.sp
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = record.description,
+                                        color = Color.White,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        textAlign = TextAlign.Right
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 

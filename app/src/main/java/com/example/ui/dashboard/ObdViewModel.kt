@@ -433,6 +433,10 @@ class ObdViewModel(application: Application) : AndroidViewModel(application) {
         repository.sendCustomTerminalCommand(cmd)
     }
 
+    fun disconnect() {
+        repository.disconnect()
+    }
+
     override fun onCleared() {
         super.onCleared()
         repository.disconnect()
