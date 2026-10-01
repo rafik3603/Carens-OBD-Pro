@@ -374,7 +374,7 @@ object GeminiHealthPredictor {
         currentData: ObdSensorData
     ): EngineHealthReport = withContext(Dispatchers.IO) {
         val apiKey = BuildConfig.GEMINI_API_KEY
-        if (apiKey.isEmpty() || apiKey == "MY_GEMINI_API_KEY") {
+        if (apiKey.isEmpty() || apiKey == "MY_GEMINI_API_KEY" || apiKey == "your_gemini_api_key_here") {
             Log.w("GeminiHealthPredictor", "Gemini API key is empty/placeholder, falling back to rule-based calculation.")
             return@withContext calculateLocalRuleHealth(history, currentData)
         }
