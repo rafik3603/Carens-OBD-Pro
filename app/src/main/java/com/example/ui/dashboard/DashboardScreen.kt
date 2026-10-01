@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material3.*
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
@@ -3846,7 +3847,7 @@ fun DtcScannerComponent(
                                 }
                                 Spacer(modifier = Modifier.height(4.dp))
                                 LinearProgressIndicator(
-                                    progress = animatedProgress,
+                                    progress = { animatedProgress },
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(8.dp),
@@ -4031,7 +4032,7 @@ fun DtcScannerComponent(
                                                 exit = fadeOut() + shrinkVertically()
                                             ) {
                                                 Column(modifier = Modifier.padding(top = 12.dp)) {
-                                                    Divider(color = Color(0xFF3F1B1B))
+                                                    HorizontalDivider(color = Color(0xFF3F1B1B))
                                                     Spacer(modifier = Modifier.height(8.dp))
 
                                                     if (dtcInfoInDb != null) {
@@ -4115,7 +4116,7 @@ fun DtcScannerComponent(
                                                     }
 
                                                     Spacer(modifier = Modifier.height(12.dp))
-                                                    Divider(color = Color(0xFF3F1B1B))
+                                                    HorizontalDivider(color = Color(0xFF3F1B1B))
                                                     Spacer(modifier = Modifier.height(8.dp))
 
                                                     // Interactive smart self-fix inside component!
@@ -4132,7 +4133,7 @@ fun DtcScannerComponent(
                                                             )
                                                             Spacer(modifier = Modifier.height(6.dp))
                                                             LinearProgressIndicator(
-                                                                progress = selfHealingProgress,
+                                                                progress = { selfHealingProgress },
                                                                 modifier = Modifier.fillMaxWidth().height(6.dp),
                                                                 color = Color(0xFF4CAF50),
                                                                 trackColor = Color(0xFF2E2E2E)
@@ -4382,7 +4383,7 @@ fun DiagnosticView(
                             .size(38.dp)
                             .background(Color(0xFFFFB300), RoundedCornerShape(4.dp))
                     ) {
-                        Icon(Icons.Default.Send, contentDescription = "Send Command", tint = Color.Black)
+                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send Command", tint = Color.Black)
                     }
 
                     TextField(
@@ -4673,7 +4674,7 @@ fun DiagnosticView(
                                         // Expanded Detailed Area
                                         if (isExpanded) {
                                             Spacer(modifier = Modifier.height(12.dp))
-                                            Divider(color = Color(0xFF2C3549))
+                                            HorizontalDivider(color = Color(0xFF2C3549))
                                             Spacer(modifier = Modifier.height(8.dp))
                                             
                                             // Symptoms (الأعراض)
@@ -4738,7 +4739,7 @@ fun DiagnosticView(
                                             }
                                             
                                             Spacer(modifier = Modifier.height(12.dp))
-                                            Divider(color = Color(0xFF2C3549))
+                                            HorizontalDivider(color = Color(0xFF2C3549))
                                             Spacer(modifier = Modifier.height(8.dp))
                                             
                                             // Simulator Inject Action Button
@@ -6430,7 +6431,7 @@ fun PerformanceOptimizerCard(
             
             if (isExpanded) {
                 Spacer(modifier = Modifier.height(12.dp))
-                Divider(color = Color(0xFF232B3A))
+                HorizontalDivider(color = Color(0xFF232B3A))
                 Spacer(modifier = Modifier.height(12.dp))
                 
                 // Telemetry Stats Grid
@@ -6564,7 +6565,7 @@ fun RealTimeTelemetryChart(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    imageVector = Icons.Default.ShowChart,
+                    imageVector = Icons.AutoMirrored.Filled.ShowChart,
                     contentDescription = "Telemetry",
                     tint = Color(0xFFFFB300)
                 )
@@ -9224,7 +9225,7 @@ fun TabletDiagnosticView(
                                 .size(42.dp)
                                 .background(Color(0xFFFFB300), RoundedCornerShape(6.dp))
                         ) {
-                            Icon(Icons.Default.Send, contentDescription = "Send Command", tint = Color.Black)
+                            Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send Command", tint = Color.Black)
                         }
 
                         TextField(
@@ -9523,7 +9524,7 @@ fun TabletDiagnosticView(
                                                 exit = shrinkVertically() + fadeOut()
                                             ) {
                                                 Column(modifier = Modifier.padding(top = 12.dp)) {
-                                                    Divider(color = Color(0xFF2C3549))
+                                                    HorizontalDivider(color = Color(0xFF2C3549))
                                                     Spacer(modifier = Modifier.height(8.dp))
                                                     
                                                     // Symptoms (الأعراض)
@@ -9588,7 +9589,7 @@ fun TabletDiagnosticView(
                                                     }
                                                     
                                                     Spacer(modifier = Modifier.height(12.dp))
-                                                    Divider(color = Color(0xFF2C3549))
+                                                    HorizontalDivider(color = Color(0xFF2C3549))
                                                     Spacer(modifier = Modifier.height(8.dp))
 
                                                     // Interactive smart self-fix inside component!
@@ -9605,7 +9606,7 @@ fun TabletDiagnosticView(
                                                             )
                                                             Spacer(modifier = Modifier.height(6.dp))
                                                             LinearProgressIndicator(
-                                                                progress = selfHealingProgress,
+                                                                progress = { selfHealingProgress },
                                                                 modifier = Modifier.fillMaxWidth().height(6.dp),
                                                                 color = Color(0xFF4CAF50),
                                                                 trackColor = Color(0xFF2E2E2E)

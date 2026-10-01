@@ -668,15 +668,21 @@ class BluetoothObdManager(private val context: Context) {
             outStream.flush()
 
             val buffer = StringBuilder()
-            var readVal: Int
-            while (true) {
-                readVal = inStream.read()
-                if (readVal == -1) break
-                val char = readVal.toChar()
-                if (char == '>') {
-                    break // End of prompt
+            val startTime = System.currentTimeMillis()
+            val timeoutMs = 3500L
+
+            while (System.currentTimeMillis() - startTime < timeoutMs) {
+                if (inStream.available() > 0) {
+                    val readVal = inStream.read()
+                    if (readVal == -1) break
+                    val char = readVal.toChar()
+                    if (char == '>') {
+                        break // End of prompt
+                    }
+                    buffer.append(char)
+                } else {
+                    Thread.sleep(8)
                 }
-                buffer.append(char)
             }
             return buffer.toString().trim()
         } catch (e: Exception) {
@@ -759,26 +765,57 @@ class BluetoothObdManager(private val context: Context) {
 
         val foundDtcs = mutableListOf<DtcInfo>()
         if (clean.startsWith("43")) {
-            val codesPayload = clean.substring(2)
+            var codesPayload = clean.substring(2)
+            // If payload starts with count byte (e.g., 43 01 ... where count matches (length-2)/4)
+            if (codesPayload.length >= 6) {
+                val possibleCount = codesPayload.substring(0, 2).toIntOrNull(16) ?: -1
+                val remainingPairs = (codesPayload.length - 2) / 4
+                if (possibleCount in 1..remainingPairs) {
+                    codesPayload = codesPayload.substring(2)
+                }
+            }
+
             var i = 0
             while (i + 4 <= codesPayload.length) {
                 val hexCode = codesPayload.substring(i, i + 4)
-                if (hexCode != "0000") {
-                    val firstChar = when (hexCode[0]) {
-                        '0' -> 'P'
-                        '1' -> 'C'
-                        '2' -> 'B'
-                        '3' -> 'U'
+                val byte1 = hexCode.substring(0, 2).toIntOrNull(16) ?: 0
+                val byte2 = hexCode.substring(2, 4).toIntOrNull(16) ?: 0
+
+                if (byte1 != 0 || byte2 != 0) {
+                    // Standard SAE J1979 / ISO 15031-6 Bitwise DTC decoding
+                    val type = when ((byte1 and 0xC0) shr 6) {
+                        0 -> 'P'
+                        1 -> 'C'
+                        2 -> 'B'
+                        3 -> 'U'
                         else -> 'P'
                     }
-                    val dtcCode = firstChar + hexCode.substring(1)
+                    val digit1 = (byte1 and 0x30) shr 4
+                    val digit2 = byte1 and 0x0F
+                    val dtcCode = String.format(Locale.US, "%c%X%X%02X", type, digit1, digit2, byte2)
+
                     val match = KiaCarensFaults.AVAILABLE_FAULTS.firstOrNull { it.code == dtcCode }
+                        ?: KiaDtcDatabase.DTC_LIST.firstOrNull { it.code == dtcCode }?.let {
+                            DtcInfo(
+                                code = it.code,
+                                descriptionAr = it.descriptionAr,
+                                descriptionEn = it.descriptionEn,
+                                category = it.category
+                            )
+                        }
+
                     foundDtcs.add(
                         match ?: DtcInfo(
                             code = dtcCode,
-                            descriptionAr = "كود عطل غير معروف ($dtcCode)، يرجى مراجعة الكتالوج",
-                            descriptionEn = "Unknown diagnostic code ($dtcCode)",
-                            category = "Generic OBD"
+                            descriptionAr = "كود عطل ($dtcCode) - يرجى فحص الدائرة أو الحساس المرتبط",
+                            descriptionEn = "Diagnostic trouble code ($dtcCode)",
+                            category = when (type) {
+                                'P' -> "Powertrain (المحرك وناقل الحركة)"
+                                'C' -> "Chassis (الهيكل والشاصيه)"
+                                'B' -> "Body (جسم السيارة)"
+                                'U' -> "Network (شبكة الاتصال CAN)"
+                                else -> "Generic OBD"
+                            }
                         )
                     )
                 }
@@ -1200,15 +1237,23 @@ class BluetoothObdManager(private val context: Context) {
             }
 
             val payload = ("$cmd\r").toByteArray()
-            writeChar.value = payload
-            writeChar.writeType = if ((writeChar.properties and BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE) != 0) {
+            val writeType = if ((writeChar.properties and BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE) != 0) {
                 BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
             } else {
                 BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
             }
 
             try {
-                gatt.writeCharacteristic(writeChar)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    gatt.writeCharacteristic(writeChar, payload, writeType)
+                } else {
+                    @Suppress("DEPRECATION")
+                    writeChar.value = payload
+                    @Suppress("DEPRECATION")
+                    writeChar.writeType = writeType
+                    @Suppress("DEPRECATION")
+                    gatt.writeCharacteristic(writeChar)
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "Error writing BLE characteristic", e)
                 throw e
@@ -1404,8 +1449,14 @@ class BluetoothObdManager(private val context: Context) {
                     gatt.setCharacteristicNotification(readChar, true)
 
                     readChar.getDescriptor(UUID.fromString("00002902-0000-1000-8000-00805f9b34fb"))?.let { desc ->
-                        desc.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
-                        gatt.writeDescriptor(desc)
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            gatt.writeDescriptor(desc, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)
+                        } else {
+                            @Suppress("DEPRECATION")
+                            desc.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+                            @Suppress("DEPRECATION")
+                            gatt.writeDescriptor(desc)
+                        }
                     }
 
                     Log.d(TAG, "GATT setup completed successfully. Launching OBD protocol...")
@@ -1426,8 +1477,16 @@ class BluetoothObdManager(private val context: Context) {
             }
         }
 
+        override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, value: ByteArray) {
+            handleBleChunk(String(value))
+        }
+
+        @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
         override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic) {
-            val dataStr = String(characteristic.value)
+            handleBleChunk(String(characteristic.value))
+        }
+
+        private fun handleBleChunk(dataStr: String) {
             Log.d(TAG, "BLE Chunk Received: $dataStr")
             synchronized(bleResponseBuffer) {
                 bleResponseBuffer.append(dataStr)
